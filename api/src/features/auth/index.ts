@@ -22,8 +22,6 @@ app.post("/login", validate("json", loginSchema), async (c) => {
     });
   }
 
-  console.log("--- JWT:", token);
-
   return c.json({
     success: true,
     jwt: token
