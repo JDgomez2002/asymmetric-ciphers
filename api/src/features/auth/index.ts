@@ -8,9 +8,9 @@ import { login, register } from "./service";
 const app = new Hono();
 
 app.post("/login", validate("json", loginSchema), async (c) => {
-  const data = c.req.valid("json");
+  const body = c.req.valid("json");
 
-  const { success, error } = await login(data);
+  const { success, error, data: token } = await login(body);
 
   if (!success) {
     const status = error instanceof AuthError ? error.status : 500;
@@ -22,8 +22,11 @@ app.post("/login", validate("json", loginSchema), async (c) => {
     });
   }
 
+  console.log("--- JWT:", token);
+
   return c.json({
     success: true,
+    jwt: token
   });
 });
 

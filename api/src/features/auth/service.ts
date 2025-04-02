@@ -5,11 +5,17 @@ import { User, users } from "@db/schema";
 import db from "@/db/drizzle";
 import { eq } from "drizzle-orm";
 import * as bcrypt from "bcrypt";
+import { sign } from 'hono/jwt'
+
+// Token expires in, with minutes
+const expirationMinutes: number = 60;
+const EXPIRATION_TIME: number = Math.floor(Date.now() / 1000) + 60 * expirationMinutes
+const JWT_SECRET_KEY = process.env.JWT_KEY!
 
 async function login({
   username,
   password,
-}: LoginSchema): Promise<Result<void>> {
+}: LoginSchema): Promise<Result<string>> {
   const result = await db
     .select()
     .from(users)
@@ -30,7 +36,15 @@ async function login({
     );
   }
 
-  return ok(undefined);
+  // handle jwt generation...
+  const payload = {
+    sub: user.id,
+    role: 'user',
+    exp: EXPIRATION_TIME,
+  }
+  const token = await sign(payload, JWT_SECRET_KEY)
+
+  return ok(token);
 }
 
 async function register({
