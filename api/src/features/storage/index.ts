@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { uploadFileSchema } from "./schemas";
 import { jwt } from 'hono/jwt'
 import type { JwtVariables } from 'hono/jwt'
+import { authMiddleware } from "./middleware";
 
 const JWT_SECRET_KEY = process.env.JWT_KEY!
 
@@ -12,7 +13,7 @@ const app = new Hono<{ Variables: Variables }>();
 
 app.use(
   "*",
-  jwt({ secret: JWT_SECRET_KEY })
+  authMiddleware(JWT_SECRET_KEY)
 );
 
 app.get("/", async (c) => {
