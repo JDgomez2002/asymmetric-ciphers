@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { uploadFileSchema } from "./schemas";
 import type { JwtVariables } from 'hono/jwt'
 import { authMiddleware } from "./middleware";
+import { getFiles } from "./service";
 
 const JWT_SECRET_KEY = process.env.JWT_KEY!
 
@@ -16,7 +17,10 @@ app.use(
 );
 
 app.get("/", async (c) => {
-  return c.json({ success: true, message: "List files endpoint" });
+
+  const { data: files } = await getFiles();
+
+  return c.json({ files });
 });
 
 app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
