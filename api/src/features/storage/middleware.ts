@@ -1,6 +1,8 @@
 import { jwt } from 'hono/jwt'
 import { MiddlewareHandler } from 'hono';
 
-export const authMiddleware = (token: string): MiddlewareHandler => {
-  return jwt({ secret: token })
+const JWT_SECRET_KEY = process.env.JWT_KEY!
+
+export const authMiddleware = (): MiddlewareHandler => {
+  return jwt({ secret: JWT_SECRET_KEY })
 };

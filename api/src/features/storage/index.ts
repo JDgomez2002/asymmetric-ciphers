@@ -5,15 +5,13 @@ import type { JwtVariables } from 'hono/jwt'
 import { authMiddleware } from "./middleware";
 import { getFiles } from "./service";
 
-const JWT_SECRET_KEY = process.env.JWT_KEY!
-
 type Variables = JwtVariables
 
 const app = new Hono<{ Variables: Variables }>();
 
 app.use(
   "*",
-  authMiddleware(JWT_SECRET_KEY)
+  authMiddleware()
 );
 
 app.get("/", async (c) => {
