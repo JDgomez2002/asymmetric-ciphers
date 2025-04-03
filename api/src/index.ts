@@ -1,5 +1,6 @@
 import auth from "@features/auth";
 import storage from "@features/storage";
+import keys from "@features/keys";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
@@ -11,6 +12,8 @@ app.use("*", logger());
 
 app.route("/auth", auth);
 app.route("/files", storage);
+
+app.route("/keys", keys);
 
 app.onError((err: Error | HTTPException, c) => {
   console.error(err);

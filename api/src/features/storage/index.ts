@@ -2,7 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { uploadFileSchema } from "./schemas";
 import type { JwtVariables } from 'hono/jwt'
-import { authMiddleware } from "./middleware";
+import { authMiddleware } from "../../middlewares";
 import { getFiles } from "./service";
 
 type Variables = JwtVariables
