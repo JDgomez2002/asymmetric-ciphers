@@ -91,7 +91,11 @@ export function FileListSection({
               encryptionKey={encryptionKey}
               onFileUpload={onFileUpload}
               triggerButton={
-                <Button size="icon" variant="outline" className="gap-1">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="gap-1 cursor-pointer"
+                >
                   <Upload className="size-3" />
                 </Button>
               }
@@ -123,7 +127,7 @@ export function FileListSection({
         ) : (
           <div>
             {/* Table header */}
-            <div className="grid grid-cols-12 text-xs pb-2 font-medium text-muted-foreground px-3">
+            <div className="grid grid-cols-12 text-xs pb-2 font-medium text-muted-foreground px-6">
               <div className="col-span-7">Name</div>
               <div className="col-span-2">Size</div>
               <div className="col-span-2">Type</div>
@@ -135,7 +139,7 @@ export function FileListSection({
               {files.map((file, index) => (
                 <div
                   key={file.id}
-                  className={`grid grid-cols-12 py-2.5 px-3 cursor-pointer  border-t  group hover:bg-secondary/50 ${
+                  className={`grid grid-cols-12 py-2.5 px-6 cursor-pointer  border-t  group hover:bg-secondary/50 ${
                     index === files.length - 1 ? "border-b" : ""
                   }`}
                 >
