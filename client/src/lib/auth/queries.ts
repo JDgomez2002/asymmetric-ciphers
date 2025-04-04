@@ -45,10 +45,8 @@ export const useCurrentUser = () => {
         return data.user;
       } catch (error: any) {
         console.log("[useCurrentUser] Error fetching user.", error);
-        // Check if the error is due to an expired token (401 Unauthorized)
         if (error?.response?.status === 401) {
           localStorage.removeItem("token");
-          // The axios interceptor will also handle this
           throw new Error("Token expired");
         }
         throw error;

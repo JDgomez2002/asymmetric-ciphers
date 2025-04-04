@@ -1,26 +1,40 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Download, Trash2 } from "lucide-react"
-import type { FileType } from "@/types/file"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Download, Trash2 } from "lucide-react";
+import type { FileType } from "@/types/file";
 
 interface FileInfoModalProps {
-  file: FileType | null
-  isOpen: boolean
-  onClose: () => void
-  onDelete: () => void
-  onDownload: () => void
+  file: FileType | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onDelete: () => void;
+  onDownload: () => void;
 }
 
-export function FileInfoModal({ file, isOpen, onClose, onDelete, onDownload }: FileInfoModalProps) {
-  if (!file) return null
+export function FileInfoModal({
+  file,
+  isOpen,
+  onClose,
+  onDelete,
+  onDownload,
+}: FileInfoModalProps) {
+  if (!file) return null;
 
   const formatSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes"
-    const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB"]
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-  }
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (
+      Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -65,6 +79,5 @@ export function FileInfoModal({ file, isOpen, onClose, onDelete, onDownload }: F
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-

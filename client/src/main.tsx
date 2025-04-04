@@ -8,7 +8,9 @@ import FileManager from "@/features/storage";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/lib/auth/auth-provider";
-import { ProtectedLayout } from "./components/protected-layout";
+import { MainLayout } from "./layouts/main-layout";
+import { Toaster } from "sonner";
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -20,7 +22,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/drive",
-    element: <ProtectedLayout />,
+    element: <MainLayout />,
     children: [
       {
         path: "",
@@ -42,6 +44,7 @@ createRoot(document.getElementById("root")!).render(
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <RouterProvider router={router}></RouterProvider>
+          <Toaster />
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

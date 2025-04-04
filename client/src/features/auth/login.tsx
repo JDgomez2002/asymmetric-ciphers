@@ -1,7 +1,4 @@
-import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -10,7 +7,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth/auth-provider";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { toast } from "sonner";
+
 const LoginPage = () => {
   const { login } = useAuth();
 
@@ -29,6 +31,9 @@ const LoginPage = () => {
           console.log("[LoginPage] Setting token in localStorage.", data);
           localStorage.setItem("token", data.jwt);
           navigate("/drive");
+        },
+        onError: () => {
+          toast.error("Invalid username or password");
         },
       }
     );
