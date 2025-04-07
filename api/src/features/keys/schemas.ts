@@ -6,3 +6,17 @@ export const keySchema = z.object({
 });
 
 export type KeySchema = z.infer<typeof keySchema>;
+
+export const syncKeySchema = z.object({
+  encrypted_asymmetric_key: z.string().min(1),
+  public_key: z.string().min(1),
+});
+
+export type SyncKeySchema = z.infer<typeof syncKeySchema>;
+
+export const verifySchema = z.object({
+  file_id: z.number(),
+  signature: z.string().min(1),
+});
+
+export type VerifySchema = z.infer<typeof verifySchema>;

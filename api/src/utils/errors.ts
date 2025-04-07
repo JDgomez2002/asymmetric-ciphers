@@ -29,3 +29,14 @@ export class StorageError extends Error {
     this.name = "StorageError";
   }
 }
+
+export class KeyError extends Error {
+  constructor(
+    message: string,
+    public status: ContentfulStatusCode = 500,
+    public code: "KEY_NOT_FOUND" | "INVALID_KEY" = "KEY_NOT_FOUND"
+  ) {
+    super(message);
+    this.name = "KeyError";
+  }
+}

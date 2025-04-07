@@ -20,33 +20,29 @@ app.get("/", async (c) => {
 });
 
 app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
-  const { name, content, hash } = c.req.valid("json");
-  const userId = c.get("jwtPayload").sub;
-
-  const result = await createFile({
-    name,
-    content,
-    hash,
-    userId,
-  });
-
-  if (!result.success) {
-    const status =
-      result.error instanceof StorageError ? result.error.status : 500;
-    const code =
-      result.error instanceof StorageError
-        ? result.error.code
-        : "INTERNAL_SERVER_ERROR";
-
-    throw new HTTPException(status, {
-      message: code,
-    });
-  }
-
-  return c.json({
-    success: true,
-    file: result.data,
-  });
+  // const { name, content, hash } = c.req.valid("json");
+  // const userId = c.get("jwtPayload").sub;
+  // const result = await createFile({
+  //   name,
+  //   content,
+  //   hash,
+  //   userId,
+  // });
+  // if (!result.success) {
+  //   const status =
+  //     result.error instanceof StorageError ? result.error.status : 500;
+  //   const code =
+  //     result.error instanceof StorageError
+  //       ? result.error.code
+  //       : "INTERNAL_SERVER_ERROR";
+  //   throw new HTTPException(status, {
+  //     message: code,
+  //   });
+  // }
+  // return c.json({
+  //   success: true,
+  //   file: result.data,
+  // });
 });
 
 app.get("/:id", async (c) => {
