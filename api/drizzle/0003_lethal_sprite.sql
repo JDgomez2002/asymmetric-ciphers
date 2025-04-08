@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "symmetric_key" varchar(2048);

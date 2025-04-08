@@ -22,6 +22,20 @@
       "when": 1744063945908,
       "tag": "0002_rare_captain_midlands",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1744086491779,
+      "tag": "0003_lethal_sprite",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1744090063608,
+      "tag": "0004_strong_captain_cross",
+      "breakpoints": true
     }
   ]
 }

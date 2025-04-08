@@ -16,15 +16,11 @@ export class AuthError extends Error {
 }
 
 export class StorageError extends Error {
-  constructor(
-    message: string,
-    public status: ContentfulStatusCode = 500,
-    public code:
-      | "FILE_NOT_FOUND"
-      | "UPLOAD_FAILED"
-      | "INVALID_FILE"
-      | "PERMISSION_DENIED" = "UPLOAD_FAILED"
-  ) {
+    constructor(
+        message: string,
+        public status?: string,
+        public code?: number
+    ) {
     super(message);
     this.name = "StorageError";
   }

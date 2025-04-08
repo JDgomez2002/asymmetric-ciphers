@@ -2,10 +2,11 @@ import { z } from "zod";
 
 export const uploadFileSchema = z.object({
   name: z.string().min(1),
-  content: z.string(), // The encrypted content
-  hash: z.string().min(1), // Hash of the encrypted content
-  signature: z.string().min(1), // Signature of the encrypted content
+  content: z.string(), // This will be base64 encoded encrypted content
+  hash: z.string(),
+  signature: z.string(),
   contentType: z.string().optional(),
+  size: z.number()
 });
 
 export const fileIdSchema = z.object({

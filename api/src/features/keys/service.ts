@@ -92,6 +92,7 @@ export const getUserKey = async (
   Result<{
     has_key: boolean;
     public_key: string | null;
+    symmetric_key: string | null;
   }>
 > => {
   const user = await db.query.users.findFirst({
@@ -99,6 +100,7 @@ export const getUserKey = async (
     columns: {
       public_key: true,
       asymmetric_key: true,
+      symmetric_key: true,
     },
   });
 
@@ -109,6 +111,7 @@ export const getUserKey = async (
   return ok({
     has_key: !!user.asymmetric_key && !!user.public_key,
     public_key: user.public_key,
+    symmetric_key: user.symmetric_key,
   });
 };
 
