@@ -96,7 +96,7 @@ export function FileList() {
                     variant="outline"
                     className="gap-1 cursor-pointer"
                   >
-                    <Upload className="size-3" />
+                    <Upload  className="size-3" />
                   </Button>
                 }
               />

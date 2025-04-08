@@ -64,8 +64,8 @@ export const useUserKeys = () => {
     queryKey: [KEYS_QUERY_KEY],
     queryFn: async (): Promise<UserKeyResponse["data"]> => {
       try {
-        const { data } = await api.get<UserKeyResponse>("/keys");
-        return data.data;
+        const { data: { data: keys } } = await api.get<UserKeyResponse>("/keys");
+        return keys;
       } catch (error: any) {
         console.error("Error fetching user keys:", error);
         throw error;
