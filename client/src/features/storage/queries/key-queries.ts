@@ -48,7 +48,9 @@ export const useServerPublicKey = () => {
     queryKey: [SERVER_PUBLIC_KEY_QUERY_KEY],
     queryFn: async (): Promise<string> => {
       try {
-        const { data: { public_key, symmetric_key } } = await api.get<ServerPublicKeyResponse>("/keys/public");
+        const {
+          data: { public_key },
+        } = await api.get<ServerPublicKeyResponse>("/keys/public");
         return public_key;
       } catch (error: any) {
         console.error("Error fetching server public key:", error);
@@ -66,7 +68,9 @@ export const useUserKeys = () => {
     queryKey: [KEYS_QUERY_KEY],
     queryFn: async (): Promise<UserKeyResponse["data"]> => {
       try {
-        const { data: { data: keys } } = await api.get<UserKeyResponse>("/keys");
+        const {
+          data: { data: keys },
+        } = await api.get<UserKeyResponse>("/keys");
         return keys;
       } catch (error: any) {
         console.error("Error fetching user keys:", error);

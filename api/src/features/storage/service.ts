@@ -1,9 +1,7 @@
 import db from "@/db/drizzle";
-import { files as Files, users, File } from "@db/schema";
-import { Result, ok, err } from "@/utils/result";
 import { StorageError } from "@/utils/errors";
-import { eq } from "drizzle-orm";
-import * as crypto from "crypto";
+import { Result, err, ok } from "@/utils/result";
+import { File, files as Files } from "@db/schema";
 
 export const getFiles = async (): Promise<Result<File[]>> => {
   const files = await db.select().from(Files);
@@ -83,43 +81,44 @@ export const getFiles = async (): Promise<Result<File[]>> => {
 // import { StorageError } from '@/utils/errors';
 
 export const createFile = async ({
-                                   name,
-                                   content,
-                                   hash,
-                                   userId,
-                                   signature,
-                                   contentType,
-                                   size
-                                 }: {
-    name: string;
-    content: string; // base64 encoded content
-    hash: string;
-    userId: number;
-    signature: string;
-    contentType?: string;
-    size: number;
+  name,
+  content,
+  hash,
+  userId,
+  signature,
+  contentType,
+  size,
+}: {
+  name: string;
+  content: string; // base64 encoded content
+  hash: string;
+  userId: number;
+  signature: string;
+  contentType?: string;
+  size: number;
 }) => {
   try {
     // Decode base64 content to binary
-    const binaryContent = Buffer.from(content, 'base64');
+    const binaryContent = Buffer.from(content, "base64");
 
-    const [file] = await db.insert(Files)
-        .values({
-          name,
-          hash,
-          content: binaryContent.toString("base64"),
-          signature,
-          userId,
-          contentType,
-          size
-        })
-        .returning();
+    const [file] = await db
+      .insert(Files)
+      .values({
+        name,
+        hash,
+        content: binaryContent.toString("base64"),
+        signature,
+        userId,
+        contentType,
+        size,
+      })
+      .returning();
 
     return ok(file);
   } catch (error) {
-    console.error('Error creating file:', error);
+    console.error("Error creating file:", error);
     return err(
-        new StorageError('Failed to create file', 'FILE_CREATION_FAILED', 500)
-    )
+      new StorageError("Failed to create file", "FILE_CREATION_FAILED", 500)
+    );
   }
 };
