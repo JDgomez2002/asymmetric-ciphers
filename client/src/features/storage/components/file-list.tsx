@@ -24,11 +24,15 @@ import {
 import { Download, File as FileIcon, MoreVertical, Upload } from "lucide-react";
 import { FileInfoModal } from "@/features/storage/components/file-info-modal";
 import {useEffect, useState} from "react";
-import { useFiles } from "@/lib/files/queries";
+import { useFiles, useVerifyFile } from "@/lib/files/queries";
+import { toast } from "sonner";
+import api from "@/lib/api/axios";
 
 export function FileList() {
   const [selectedFile, setSelectedFile] = useState<file | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { mutate: verifyFile } = useVerifyFile();
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -62,13 +66,36 @@ export function FileList() {
     console.log("file deleted");
   };
 
-  const handleFileDownload = (file: file) => {
-    console.log(file);
+  const handleFileDownload = async (file: file) => {
+    const response = await api.get(`/files/${file.id}/download`, {
+      responseType: 'blob'
+    });
+    
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data]);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', file.name);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   const onFileInfo = (file: file) => {
     setSelectedFile(file);
     setIsModalOpen(true);
+  };
+
+  const handleVerifyFile = () => {
+    const { publicKey } = JSON.parse(localStorage.getItem("private-key") ?? "{}");
+
+    if (!publicKey) {
+      toast.error("");
+      return;
+    }
+
   };
 
     if (filesLoading || !files) {
@@ -186,6 +213,9 @@ export function FileList() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => onFileInfo(file)}>
                             file Info
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleVerifyFile}>
+                            Verify
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleFileDownload(file)}

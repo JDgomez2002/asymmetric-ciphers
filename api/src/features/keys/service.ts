@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { Result, ok, err } from "@/utils/result";
 import { KeyError } from "@utils/errors";
 import * as crypto from "crypto";
+import {HTTPException} from "hono/dist/types/http-exception";
 
 export const updateKey = async ({
   user_id,
@@ -173,3 +174,44 @@ export const verifyFileSignature = async ({
     return err(new Error(`Verification failed: ${errorMessage}`));
   }
 };
+
+export const decryptUserSymmetricKey = async (encryptedKey: string): Promise<Result<Buffer<ArrayBufferLike>>> => {
+  // Decrypt the symmetric key using the server's private key
+  const serverPrivateKeyPem = process.env.PRIVATE_KEY;
+  if (!serverPrivateKeyPem) {
+    return err(new KeyError("Server configuration error", 500, "SERVER KEY ERROR" ));
+  }
+
+  const encryptedKeyBuffer = Buffer.from(encryptedKey, "base64");
+  const decrypted_symmetric_key = crypto.privateDecrypt(
+      {
+        key: serverPrivateKeyPem,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: "sha256",
+      },
+      encryptedKeyBuffer
+  );
+
+    return ok(decrypted_symmetric_key);
+};
+
+export const verifyFileSignatureWithUserKey = async ({ public_key, hash, signature }: { public_key: string; hash: string; signature: string; }): Promise<Result<boolean>> => {
+  // Convert the hash from base64 to a buffer
+  const hashBuffer = Buffer.from(hash, 'base64');
+
+  // Convert the signature from base64 to a buffer
+  const signatureBuffer = Buffer.from(signature, 'base64');
+
+  // In Web Crypto API, RSASSA-PKCS1-v1_5 with SHA-256 was used for signing
+  // So we need to use the equivalent in Node.js crypto
+  const isVerified = crypto.verify(
+      'RSA-SHA256', // Algorithm
+      hashBuffer,   // Original data that was signed
+      public_key, // Public key in PEM format
+      signatureBuffer  // The signature to verify
+  );
+
+    return ok(isVerified);
+};
+
+

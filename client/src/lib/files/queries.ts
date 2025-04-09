@@ -33,8 +33,36 @@ export const useFiles = () => {
     });
 };
 
+
+export const useVerifyFile = () => {
+
+    return useMutation({
+        mutationFn: async ({ content, signature, public_key }: { content: string, signature: string, public_key: string }) => {
+            try {
+                const token = localStorage.getItem("token");
+                const { data: { message } } = await api.post("/files/verify", {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                    data: { content, signature, public_key }
+                });
+                return message;
+            } catch (e: any) {
+                console.log("[useUploadFile] Error verifying file.", e);
+                if (e?.response?.status === 401) {
+                    localStorage.removeItem("token");
+                    throw new Error("Token expired");
+                }
+                throw e;
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["files"] });
+        }
+    });
+};
+
 export const useUploadFile = () => {
-    // const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: async ({ name, content, hash, signature, contentType, size }: { name: string, content: string , hash: string, signature: string, contentType: string, size: number}) => {
@@ -61,3 +89,5 @@ export const useUploadFile = () => {
         }
     });
 };
+
+

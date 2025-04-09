@@ -8,10 +8,12 @@ import {
 } from "@/components/ui/dialog";
 import api from "@/lib/api/axios";
 import { Loader2, Plus, Upload } from "lucide-react";
-import { useCallback, useState } from "react";
+import {useCallback, useEffect, useState} from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { queryClient } from "@/main";
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 
 // --- Helper functions for encryption (Should ideally be in a separate utils file) ---
 
@@ -40,7 +42,7 @@ const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
  * @returns A Promise resolving to an object containing the base64 encoded IV and ciphertext, or null if encryption fails.
  */
 const encryptFileWithLocalKey = async (
-  file: File
+    file: File
 ): Promise<{ iv: string; encryptedData: string } | null> => {
   try {
     // 1. Retrieve the base64 symmetric key from local storage
@@ -56,11 +58,11 @@ const encryptFileWithLocalKey = async (
 
     // 3. Import the symmetric key for use with Web Crypto API
     const cryptoKey = await window.crypto.subtle.importKey(
-      "raw",
-      symmetricKeyRaw,
-      { name: "AES-GCM" },
-      true,
-      ["encrypt", "decrypt"]
+        "raw",
+        symmetricKeyRaw,
+        { name: "AES-GCM" },
+        true,
+        ["encrypt", "decrypt"]
     );
 
     // 4. Read the file content as an ArrayBuffer
@@ -71,12 +73,12 @@ const encryptFileWithLocalKey = async (
 
     // 6. Encrypt the file content
     const encryptedContent = await window.crypto.subtle.encrypt(
-      {
-        name: "AES-GCM",
-        iv: iv,
-      },
-      cryptoKey,
-      fileBuffer
+        {
+          name: "AES-GCM",
+          iv: iv,
+        },
+        cryptoKey,
+        fileBuffer
     );
 
     // 7. Package the IV and encrypted data (convert to base64 for easier handling/storage)
@@ -95,6 +97,59 @@ const encryptFileWithLocalKey = async (
   }
 };
 
+/**
+ * Generates a SHA-256 hash of the file content
+ * @param fileContent The file content as ArrayBuffer
+ * @returns A Promise resolving to the base64 encoded hash
+ */
+const generateFileHash = async (fileContent: ArrayBuffer): Promise<string> => {
+  try {
+    // Generate SHA-256 hash of the file content
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', fileContent);
+
+    // Convert the hash to base64 string
+    return arrayBufferToBase64(hashBuffer);
+  } catch (error) {
+    console.error("Error generating file hash:", error);
+    throw new Error("Failed to generate file hash");
+  }
+};
+
+/**
+ * Signs the file hash with the user's private key
+ * @param hash The hash to sign (base64 string)
+ * @param private_key
+ * @returns A Promise resolving to the base64 encoded signature
+ */
+const signHash = async (hash: string, private_key: string): Promise<string> => {
+  try {
+    // Import the private key for use with Web Crypto API
+    const privateKey = await window.crypto.subtle.importKey(
+        "pkcs8",
+        base64ToArrayBuffer(private_key),
+        {
+          name: "RSASSA-PKCS1-v1_5",
+          hash: { name: "SHA-256" },
+        },
+        false,
+        ["sign"]
+    );
+
+    // Sign the hash
+    const signature = await window.crypto.subtle.sign(
+        "RSASSA-PKCS1-v1_5",
+        privateKey,
+        base64ToArrayBuffer(hash)
+    );
+
+    // Convert the signature to base64 string
+    return arrayBufferToBase64(signature);
+  } catch (error) {
+    console.error("Error signing hash:", error);
+    throw new Error("Failed to sign hash with private key");
+  }
+};
+
 // --- Component Code ---
 
 interface FileUploadModalProps {
@@ -104,12 +159,20 @@ interface FileUploadModalProps {
 export function FileUploadModal({ triggerButton }: FileUploadModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [sign, setSign] = useState<boolean>(false);
 
   const handleFiles = useCallback(async (acceptedFiles: File[]) => {
     const encryptionKey = localStorage.getItem("symmetric-key");
+    const { privateKey } = JSON.parse(localStorage.getItem("private-key") ?? "{}");
+
     if (!encryptionKey) {
       toast.error("Please generate or provide an encryption key first.");
       setIsOpen(false);
+      return;
+    }
+
+    if (sign && !privateKey) {
+      toast.error("Private key not found. Cannot sign the file.");
       return;
     }
 
@@ -133,13 +196,32 @@ export function FileUploadModal({ triggerButton }: FileUploadModalProps) {
         return;
       }
 
+      let fileHash = "";
+      let signature = "";
+
+      // console.log("Signing file:", sign);
+
+      // Only perform signing if the sign flag is true
+      if (sign) {
+        // Read file content for hashing
+        const fileBuffer = await file.arrayBuffer();
+
+        // Generate a hash of the original file content
+        fileHash = await generateFileHash(fileBuffer);
+
+        // Sign the hash with the private key
+        signature = await signHash(fileHash, privateKey);
+
+        // console.log("Signing file:", sign, fileHash, signature);
+      }
+
       // 2. Prepare the payload for the server
       const payload = {
         name: file.name,
         encrypted_content: encryptedResult.encryptedData,
         iv: encryptedResult.iv,
-        hash: "TODO_generate_hash", // Placeholder - implement actual hash generation later
-        signature: "TODO_generate_signature", // Placeholder - implement actual signature generation later
+        hash: fileHash,
+        signature: signature,
         contentType: file.type || "application/octet-stream",
         size: file.size,
       };
@@ -170,7 +252,7 @@ export function FileUploadModal({ triggerButton }: FileUploadModalProps) {
     } finally {
       setIsUploading(false);
     }
-  }, []);
+  }, [sign]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleFiles,
@@ -203,6 +285,11 @@ export function FileUploadModal({ triggerButton }: FileUploadModalProps) {
             Upload File
           </DialogTitle>
         </DialogHeader>
+
+        <div className="flex items-center space-x-2">
+          <Switch id="sign-file" onCheckedChange={(value) => setSign(value)} />
+          <Label>Firmar archivo</Label>
+        </div>
 
         <div className="py-4">
           <div

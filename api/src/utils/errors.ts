@@ -30,7 +30,7 @@ export class KeyError extends Error {
   constructor(
     message: string,
     public status: ContentfulStatusCode = 500,
-    public code: "KEY_NOT_FOUND" | "INVALID_KEY" = "KEY_NOT_FOUND"
+    public code: "KEY_NOT_FOUND" | "INVALID_KEY" | "SERVER KEY ERROR" = "KEY_NOT_FOUND"
   ) {
     super(message);
     this.name = "KeyError";

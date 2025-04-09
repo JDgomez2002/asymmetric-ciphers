@@ -10,6 +10,12 @@ export const uploadFileSchema = z.object({
   size: z.number(),
 });
 
+export const verifyFileSchema = z.object({
+  content: z.string(),
+  signature: z.string(),
+  public_key: z.string(),
+});
+
 export const fileIdSchema = z.object({
   id: z.string().min(1),
 });

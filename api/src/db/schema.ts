@@ -21,7 +21,8 @@ export const files = pgTable("files", {
   userId: serial("user_id").references(() => users.id),
   size: integer("size").notNull(),
   contentType: varchar("content_type", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  path: text("path").notNull(),
 });
 
 export type File = typeof files.$inferSelect;

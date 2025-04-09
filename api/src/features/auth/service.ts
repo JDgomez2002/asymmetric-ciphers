@@ -83,4 +83,20 @@ async function register({
   return ok(undefined);
 }
 
-export { login, register };
+async function getUserById(id: number): Promise<Result<User>> {
+    const result = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
+
+    const user = result[0];
+
+    if (!user) {
+        return err(new AuthError("User not found", 404, "USER_NOT_FOUND"));
+    }
+
+    return ok(user);
+}
+
+export { login, register, getUserById };

@@ -1,6 +1,6 @@
 {
-  "id": "ab98f8a7-1570-41a8-a633-8e85af4dccdb",
-  "prevId": "66539933-3374-4c17-8824-ad93b50ced60",
+  "id": "6a424927-b38a-4b72-b8d7-48efef10ca35",
+  "prevId": "ab98f8a7-1570-41a8-a633-8e85af4dccdb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -62,6 +62,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {},
