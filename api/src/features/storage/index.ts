@@ -108,12 +108,38 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
     ]);
 
     // save the file for demonstration purposes
-    await Bun.write(`./files/${name}`, decrypted_content);
+    const file_path = `./files/${name}`;
+    await Bun.write(file_path, decrypted_content);
+
+    // Save the file metadata to the database
+    const file = {
+      name,
+      hash,
+      signature,
+      content: decrypted_content.toString("base64"),
+      size,
+      contentType,
+      userId,
+    };
+
+    const { success, error, data: new_file } = await createFile(file);
+
+    if (!success) {
+      new HTTPException(
+        500,
+        new StorageError(error.message, "500", 500)
+      );
+    }
 
     // Continue with the decrypted content...
     return c.json({
       message: "File decrypted successfully",
-      decryptedSize: decrypted_content.length,
+      file: {
+        name: new_file?.name,
+        size: new_file?.size,
+        type: new_file?.contentType,
+        id: new_file?.id,
+      },
     });
   } catch (error) {
     console.error("Decryption error:", error);
@@ -129,33 +155,6 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
     }
     throw new HTTPException(400, { message: "Failed to decrypt file" });
   }
-
-  // const { success, error, data } = await createFile({
-  //   name,
-  //   content,
-  //   hash,
-  //   signature,
-  //   userId,
-  //   contentType,
-  //   size,
-  // });
-
-  // if (!success) {
-  //   const status = error instanceof StorageError ? error.status : 500;
-  //   const code =
-  //     error instanceof StorageError ? error.code : "INTERNAL_SERVER_ERROR";
-  //   throw new HTTPException(status as ContentfulStatusCode, {
-  //     message: code?.toString(),
-  //   });
-  // }
-
-  // // Return file info without the binary content
-  // const { content: _, ...fileInfo } = data;
-
-  // return c.json({
-  //   success: true,
-  //   file: fileInfo,
-  // });
 });
 
 app.get("/:id", async (c) => {

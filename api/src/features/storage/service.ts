@@ -98,15 +98,12 @@ export const createFile = async ({
   size: number;
 }) => {
   try {
-    // Decode base64 content to binary
-    const binaryContent = Buffer.from(content, "base64");
-
     const [file] = await db
       .insert(Files)
       .values({
         name,
         hash,
-        content: binaryContent.toString("base64"),
+        content,
         signature,
         userId,
         contentType,

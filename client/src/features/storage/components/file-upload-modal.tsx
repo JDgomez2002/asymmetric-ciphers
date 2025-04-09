@@ -11,6 +11,7 @@ import { Loader2, Plus, Upload } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
+import { queryClient } from "@/main";
 
 // --- Helper functions for encryption (Should ideally be in a separate utils file) ---
 
@@ -157,6 +158,8 @@ export function FileUploadModal({ triggerButton }: FileUploadModalProps) {
       console.log("Upload successful:", responseData);
       toast.success(`${file.name} uploaded and encrypted successfully!`);
       setIsOpen(false);
+      // invalidate the files query to refresh the file list
+      await queryClient.invalidateQueries({ queryKey: ["files"] });
     } catch (error) {
       console.error("Upload process error:", error);
       toast.error(

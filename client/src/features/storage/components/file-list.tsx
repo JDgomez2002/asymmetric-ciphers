@@ -21,20 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { sampleFiles } from "@/lib/sample-files";
-import { Download, File, MoreVertical, Upload } from "lucide-react";
+import { Download, File as FileIcon, MoreVertical, Upload } from "lucide-react";
 import { FileInfoModal } from "@/features/storage/components/file-info-modal";
-import { useState } from "react";
-
-type FileType = {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-};
+import {useEffect, useState} from "react";
+import { useFiles } from "@/lib/files/queries";
 
 export function FileList() {
-  const [selectedFile, setSelectedFile] = useState<FileType | null>(null);
+  const [selectedFile, setSelectedFile] = useState<file | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const formatSize = (bytes: number) => {
@@ -55,24 +48,36 @@ export function FileList() {
     return type;
   };
 
-  const files = sampleFiles;
+  const { data: files, isLoading: filesLoading } = useFiles();
+
+  useEffect(() => {
+    console.log("files:", files)
+  }, [files])
 
   const onSortFiles = (value: string) => {
     console.log(value);
   };
 
   const handleFileDelete = () => {
-    console.log("File deleted");
+    console.log("file deleted");
   };
 
-  const handleFileDownload = (file: FileType) => {
+  const handleFileDownload = (file: file) => {
     console.log(file);
   };
 
-  const onFileInfo = (file: FileType) => {
+  const onFileInfo = (file: file) => {
     setSelectedFile(file);
     setIsModalOpen(true);
   };
+
+    if (filesLoading || !files) {
+        return (
+        <div className="flex items-center justify-center h-full">
+            Loading...
+        </div>
+        );
+    }
 
   return (
     <>
@@ -136,16 +141,16 @@ export function FileList() {
 
               {/* Table rows */}
               <div>
-                {files.map((file, index) => (
+                {files.map((file, i) => (
                   <div
-                    key={file.id}
+                    key={i}
                     className={`grid grid-cols-12 py-2.5 px-6 cursor-pointer  border-t  group hover:bg-secondary/50 ${
-                      index === files.length - 1 ? "border-b" : ""
+                      i === files.length - 1 ? "border-b" : ""
                     }`}
                   >
                     <div className="col-span-7 flex items-center">
                       <div className="mr-2 flex-shrink-0">
-                        <File className="size-4" />
+                        <FileIcon className="size-4" />
                       </div>
                       <div className="truncate text-sm">{file.name}</div>
                     </div>
@@ -155,7 +160,7 @@ export function FileList() {
                     </div>
 
                     <div className="col-span-2 text-xs text-muted-foreground self-center truncate">
-                      {getFileType(file.type)}
+                      {getFileType(file?.contentType ?? "")}
                     </div>
 
                     <div className="col-span-1 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -180,7 +185,7 @@ export function FileList() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => onFileInfo(file)}>
-                            File Info
+                            file Info
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleFileDownload(file)}
