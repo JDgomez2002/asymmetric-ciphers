@@ -15,7 +15,7 @@ const JWT_SECRET_KEY = process.env.JWT_KEY!;
 async function login({
   username,
   password,
-}: LoginSchema): Promise<Result<{ token: string; user: User }>> {
+}: LoginSchema): Promise<Result<{ token: string; user: Omit <User, "password"> }>> {
   const result = await db
     .select()
     .from(users)
@@ -46,7 +46,13 @@ async function login({
 
   return ok({
     token,
-    user,
+    user: {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      public_key: user.public_key,
+      symmetric_key: user.symmetric_key,
+    }
   });
 }
 

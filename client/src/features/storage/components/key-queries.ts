@@ -12,7 +12,7 @@ interface UserKeyResponse {
   data: {
     has_key: boolean;
     public_key: string;
-    encrypted_symmetric_key: string;
+    encrypted_asymmetric_key: string;
   };
 }
 
@@ -23,7 +23,7 @@ interface ServerPublicKeyResponse {
 }
 
 interface SyncKeyRequest {
-  encrypted_symmetric_key: string;
+  encrypted_asymmetric_key: string;
   public_key: string;
 }
 
@@ -46,10 +46,10 @@ interface VerifySignatureResponse {
 export const useServerPublicKey = () => {
   return useQuery({
     queryKey: [SERVER_PUBLIC_KEY_QUERY_KEY],
-    queryFn: async (): Promise<{ public_key: string, symmetric_key: string }> => {
+    queryFn: async (): Promise<string> => {
       try {
         const { data: { public_key, symmetric_key } } = await api.get<ServerPublicKeyResponse>("/keys/public");
-        return { public_key, symmetric_key };
+        return public_key;
       } catch (error: any) {
         console.error("Error fetching server public key:", error);
         throw error;

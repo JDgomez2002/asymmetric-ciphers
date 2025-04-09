@@ -155,6 +155,7 @@ const convertPEMToDER = (pem: string): ArrayBuffer => {
 
 export function KeySettings() {
   const [encryptionKey, setEncryptionKey] = useLocalStorage("private-key");
+  const [symmetricKey, setSymmetricKey] = useLocalStorage("symmetric-key");
   const [showWarning, setShowWarning] = useState(false);
 
   const { data: serverPublicKey, isLoading: isLoadingServerKey } =
@@ -232,7 +233,7 @@ export function KeySettings() {
       // Sync keys with server
       syncKeys(
         {
-          symmetric_key: keys.,
+          encrypted_asymmetric_key: keys.encryptedKey,
           public_key: keys.publicKey,
         },
         {
@@ -244,6 +245,7 @@ export function KeySettings() {
             });
 
             setEncryptionKey(keyPairString);
+            setSymmetricKey(keys.encryptedKey); // Store the encrypted symmetric key
             toast.success("Keys generated and synced successfully");
           },
           onError: (error: any) => {
@@ -262,6 +264,7 @@ export function KeySettings() {
     setShowWarning(false);
     // Clear the key *before* generating a new one
     setEncryptionKey("");
+    setSymmetricKey("");
     // Immediately attempt to generate the new key
     handleGenerateKey();
   };

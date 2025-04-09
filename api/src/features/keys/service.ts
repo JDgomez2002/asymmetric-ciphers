@@ -69,7 +69,7 @@ export const syncUserKey = async ({
   const updateResult = await db
     .update(users)
     .set({
-      asymmetric_key: encrypted_asymmetric_key,
+      symmetric_key: encrypted_asymmetric_key,
       public_key: public_key,
     })
     .where(eq(users.id, user_id))
@@ -99,7 +99,6 @@ export const getUserKey = async (
     where: eq(users.id, user_id),
     columns: {
       public_key: true,
-      asymmetric_key: true,
       symmetric_key: true,
     },
   });
@@ -109,7 +108,7 @@ export const getUserKey = async (
   }
 
   return ok({
-    has_key: !!user.asymmetric_key && !!user.public_key,
+    has_key: !!user.symmetric_key && !!user.public_key,
     public_key: user.public_key,
     symmetric_key: user.symmetric_key,
   });
