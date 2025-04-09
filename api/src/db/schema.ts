@@ -6,7 +6,6 @@ export const users = pgTable("users", {
   password: varchar("password", { length: 255 }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   public_key: varchar("public_key", { length: 1024 }),
-  asymmetric_key: varchar("asymmetric_key", { length: 2048 }),
   symmetric_key: varchar("symmetric_key", { length: 2048 }),
 });
 

@@ -232,7 +232,7 @@ export function KeySettings() {
       // Sync keys with server
       syncKeys(
         {
-          encrypted_asymmetric_key: keys.encryptedKey,
+          symmetric_key: keys.,
           public_key: keys.publicKey,
         },
         {
