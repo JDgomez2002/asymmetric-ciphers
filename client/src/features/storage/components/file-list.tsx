@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Download, File as FileIcon, MoreVertical, Upload } from "lucide-react";
 import { FileInfoModal } from "@/features/storage/components/file-info-modal";
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import { useFiles, useVerifyFile } from "@/lib/files/queries";
 import { toast } from "sonner";
 import api from "@/lib/api/axios";
@@ -55,8 +55,8 @@ export function FileList() {
   const { data: files, isLoading: filesLoading } = useFiles();
 
   useEffect(() => {
-    console.log("files:", files)
-  }, [files])
+    console.log("files:", files);
+  }, [files]);
 
   const onSortFiles = (value: string) => {
     console.log(value);
@@ -68,15 +68,15 @@ export function FileList() {
 
   const handleFileDownload = async (file: file) => {
     const response = await api.get(`/files/${file.id}/download`, {
-      responseType: 'blob'
+      responseType: "blob",
     });
-    
+
     // Create blob URL and trigger download
     const blob = new Blob([response.data]);
     const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    link.setAttribute('download', file.name);
+    link.setAttribute("download", `${file.name}.zip`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -89,22 +89,21 @@ export function FileList() {
   };
 
   const handleVerifyFile = () => {
-    const { publicKey } = JSON.parse(localStorage.getItem("private-key") ?? "{}");
+    const { publicKey } = JSON.parse(
+      localStorage.getItem("private-key") ?? "{}"
+    );
 
     if (!publicKey) {
       toast.error("");
       return;
     }
-
   };
 
-    if (filesLoading || !files) {
-        return (
-        <div className="flex items-center justify-center h-full">
-            Loading...
-        </div>
-        );
-    }
+  if (filesLoading || !files) {
+    return (
+      <div className="flex items-center justify-center h-full">Loading...</div>
+    );
+  }
 
   return (
     <>
@@ -128,7 +127,7 @@ export function FileList() {
                     variant="outline"
                     className="gap-1 cursor-pointer"
                   >
-                    <Upload  className="size-3" />
+                    <Upload className="size-3" />
                   </Button>
                 }
               />

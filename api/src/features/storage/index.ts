@@ -1,20 +1,23 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import {uploadFileSchema, verifyFileSchema} from "./schemas";
+import { uploadFileSchema, verifyFileSchema } from "./schemas";
 import type { JwtVariables } from "hono/jwt";
 import { authMiddleware } from "@/middlewares";
 import { getFiles, createFile } from "./service";
 import { HTTPException } from "hono/http-exception";
-import {AuthError, StorageError} from "@/utils/errors";
+import { AuthError, StorageError } from "@/utils/errors";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import db from "@/db/drizzle";
 import { eq } from "drizzle-orm";
 import { users } from "@db/schema";
 type Variables = JwtVariables;
 import * as crypto from "crypto";
-import { getUserById} from "@features/auth/service";
-import { getFileById} from "@features/storage/service";
-import { decryptUserSymmetricKey, verifyFileSignatureWithUserKey } from "@features/keys/service";
+import { getUserById } from "@features/auth/service";
+import { getFileById } from "@features/storage/service";
+import {
+  decryptUserSymmetricKey,
+  verifyFileSignatureWithUserKey,
+} from "@features/keys/service";
 
 var JSZip = require("jszip");
 
@@ -34,30 +37,48 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
   const userId = c.get("jwtPayload").sub;
 
   // Check if the user exists
-  const { success: successGettingUser, error: errorGettingUser, data: user } = await getUserById(userId);
+  const {
+    success: successGettingUser,
+    error: errorGettingUser,
+    data: user,
+  } = await getUserById(userId);
 
-    if (!successGettingUser) {
-      const status = errorGettingUser instanceof AuthError ? errorGettingUser.status : 500;
-      const code =
-          errorGettingUser instanceof AuthError ? errorGettingUser.code : "INTERNAL_SERVER_ERROR";
-      throw new HTTPException(status, {
-        message: code,
-      });
-    }
+  if (!successGettingUser) {
+    const status =
+      errorGettingUser instanceof AuthError ? errorGettingUser.status : 500;
+    const code =
+      errorGettingUser instanceof AuthError
+        ? errorGettingUser.code
+        : "INTERNAL_SERVER_ERROR";
+    throw new HTTPException(status, {
+      message: code,
+    });
+  }
 
   let encrypted_symmetric_key = user.symmetric_key;
 
   if (!encrypted_symmetric_key) {
-    throw new HTTPException(400, { message: "User doesn't have a symmetric key" });
+    throw new HTTPException(400, {
+      message: "User doesn't have a symmetric key",
+    });
   }
 
   // Decrypt the symmetric key using the server's private key
-  const { success: symmetricKeyDecrypted, error: errorDecryptingSymmetricKey, data: decrypted_symmetric_key } = await decryptUserSymmetricKey(encrypted_symmetric_key);
+  const {
+    success: symmetricKeyDecrypted,
+    error: errorDecryptingSymmetricKey,
+    data: decrypted_symmetric_key,
+  } = await decryptUserSymmetricKey(encrypted_symmetric_key);
 
   if (!symmetricKeyDecrypted) {
-    const status = errorDecryptingSymmetricKey instanceof AuthError ? errorDecryptingSymmetricKey.status : 500;
+    const status =
+      errorDecryptingSymmetricKey instanceof AuthError
+        ? errorDecryptingSymmetricKey.status
+        : 500;
     const code =
-        errorDecryptingSymmetricKey instanceof AuthError ? errorDecryptingSymmetricKey.code : "INTERNAL_SERVER_ERROR";
+      errorDecryptingSymmetricKey instanceof AuthError
+        ? errorDecryptingSymmetricKey.code
+        : "INTERNAL_SERVER_ERROR";
     throw new HTTPException(status, {
       message: code,
     });
@@ -77,7 +98,9 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
     });
 
     if (!isVerified) {
-      throw new HTTPException(400, { message: "Signature verification failed" });
+      throw new HTTPException(400, {
+        message: "Signature verification failed",
+      });
     }
 
     // 1. Decode the Base64 encrypted content + tag
@@ -120,6 +143,8 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
 
     // save the file for demonstration purposes
     const file_path = `./files/${name}`;
+    // Ensure the directory exists (optional, depends on setup)
+    // await mkdir(dirname(file_path), { recursive: true });
     await Bun.write(file_path, decrypted_content);
 
     // Save the file metadata to the database
@@ -137,10 +162,7 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
     const { success, error, data: new_file } = await createFile(file);
 
     if (!success) {
-      new HTTPException(
-        500,
-        new StorageError(error.message, "500", 500)
-      );
+      new HTTPException(500, new StorageError(error.message, "500", 500));
     }
 
     // Continue with the decrypted content...
@@ -153,17 +175,19 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
         id: new_file?.id,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Decryption error:", error);
     // Check if the error is specifically a tag mismatch error
-    if (
-      (error instanceof Error && error.message.includes("Unsupported state")) ||
-      error.message.includes("bad auth tag")
-    ) {
-      throw new HTTPException(400, {
-        message:
-          "Decryption failed: Authentication tag mismatch or corrupted data.",
-      });
+    if (error instanceof Error) {
+      if (
+        error.message.includes("Unsupported state") ||
+        error.message.includes("bad auth tag")
+      ) {
+        throw new HTTPException(400, {
+          message:
+            "Decryption failed: Authentication tag mismatch or corrupted data.",
+        });
+      }
     }
     throw new HTTPException(400, { message: "Failed to decrypt file" });
   }
@@ -183,24 +207,30 @@ app.post("/verify", zValidator("json", verifyFileSchema), async (c) => {
   });
 
   if (!isVerified) {
-      throw new HTTPException(400, { message: "Signature verification failed" });
+    throw new HTTPException(400, { message: "Signature verification failed" });
   }
 
   return c.json({
     message: "File verified successfully, valid signature",
   });
-
 });
 app.get("/:id/download", async (c) => {
   const userId = c.get("jwtPayload").sub;
 
   // Check if the user exists
-  const { success: successGettingUser, error: errorGettingUser, data: user } = await getUserById(userId);
+  const {
+    success: successGettingUser,
+    error: errorGettingUser,
+    data: user,
+  } = await getUserById(userId);
 
   if (!successGettingUser) {
-    const status = errorGettingUser instanceof AuthError ? errorGettingUser.status : 500;
+    const status =
+      errorGettingUser instanceof AuthError ? errorGettingUser.status : 500;
     const code =
-        errorGettingUser instanceof AuthError ? errorGettingUser.code : "INTERNAL_SERVER_ERROR";
+      errorGettingUser instanceof AuthError
+        ? errorGettingUser.code
+        : "INTERNAL_SERVER_ERROR";
     throw new HTTPException(status, {
       message: code,
     });
@@ -208,11 +238,15 @@ app.get("/:id/download", async (c) => {
 
   const fileId = +c.req.param("id");
 
-  const { success: fileSuccess, error: fileError, data: file } = await getFileById(fileId);
+  const {
+    success: fileSuccess,
+    error: fileError,
+    data: file,
+  } = await getFileById(fileId);
 
   if (!fileSuccess || !file) {
     throw new HTTPException(404, {
-      message: "File not found", 
+      message: "File not found",
     });
   }
 
@@ -228,20 +262,26 @@ app.get("/:id/download", async (c) => {
   zip.file(name, fileBuffer);
 
   // Create and add the signature file
-  const signatureContent = JSON.stringify({
-    signature,
-    public_key
-  }, null, 2);
+  const signatureContent = JSON.stringify(
+    {
+      signature,
+      public_key,
+    },
+    null,
+    2
+  );
   zip.file(`${name}.signature.txt`, signatureContent);
 
   // Generate the zip file
-  const zipContent = await zip.generateAsync({type: "arraybuffer"});
+  const zipContent = await zip.generateAsync({ type: "arraybuffer" });
+  const zipBuffer = Buffer.from(zipContent); // Convert to Buffer
 
   // Set response headers for zip download
   c.header("Content-Disposition", `attachment; filename="${name}.zip"`);
   c.header("Content-Type", "application/zip");
+  c.header("Content-Length", zipBuffer.length.toString()); // Add Content-Length
 
-  return c.body(zipContent);
+  return c.body(zipBuffer); // Send Buffer instead of ArrayBuffer
 });
 
 export default app;
