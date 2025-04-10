@@ -280,15 +280,15 @@ export function FileUploadModal({ triggerButton }: FileUploadModalProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md dark:bg-card">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 mb-2">
             <Upload className="h-4 w-4" />
             Upload File
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center space-x-2">
-          <Switch id="sign-file" onCheckedChange={(value) => setSign(value)} />
-          <Label>Firmar archivo</Label>
+          <Switch id="sign-file" onCheckedChange={(value) => setSign(value)} defaultChecked={sign} />
+          <Label>Sign file</Label>
         </div>
 
         <div className="py-4">

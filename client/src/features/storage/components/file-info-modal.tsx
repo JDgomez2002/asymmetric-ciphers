@@ -7,10 +7,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, Trash2 } from "lucide-react";
-import type { FileType } from "@/types/file";
 
 interface FileInfoModalProps {
-  file: FileType | null;
+  file: file | null;
   isOpen: boolean;
   onClose: () => void;
   onDelete: () => void;
@@ -54,17 +53,17 @@ export function FileInfoModal({
 
             <div className="flex justify-between">
               <span className="text-muted-foreground">Uploaded:</span>
-              <span>{new Date(file.date).toLocaleDateString()}</span>
+              <span>{new Date(file.createdAt).toLocaleDateString()}</span>
             </div>
 
             <div className="flex justify-between">
               <span className="text-muted-foreground">Type:</span>
-              <span>{file.type.split("/")[1] || file.type}</span>
+              <span>{file.contentType?.split("/")[1] || file.contentType}</span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Encrypted:</span>
-              <span>{file.encrypted ? "Yes" : "No"}</span>
+              <span className="text-muted-foreground">Signed:</span>
+              <span>{file.signature ? "Yes" : "No"}</span>
             </div>
           </div>
         </div>

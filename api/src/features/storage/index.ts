@@ -18,6 +18,7 @@ import {
   decryptUserSymmetricKey,
   verifyFileSignatureWithUserKey,
 } from "@features/keys/service";
+import { decryptContent } from "@features/storage/service";
 
 var JSZip = require("jszip");
 
@@ -55,7 +56,7 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
     });
   }
 
-  let encrypted_symmetric_key = user.symmetric_key;
+  const encrypted_symmetric_key = user.symmetric_key;
 
   if (!encrypted_symmetric_key) {
     throw new HTTPException(400, {
@@ -90,56 +91,38 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
       throw new HTTPException(400, { message: "User public key not found" });
     }
 
-    // 0. verify the signature with the user's public key
-    const isVerified = await verifyFileSignatureWithUserKey({
-      public_key,
-      hash,
-      signature,
-    });
+    // 0. verify the signature with the user's public key just if the user sent valid hash and signature
+    if (hash.trim() && signature.trim()) {
+      console.log("file is signed!!!!")
+      const { success: signatureVerified, data: isVerified } = await verifyFileSignatureWithUserKey({
+        public_key,
+        hash,
+        signature,
+      });
+  
+      if (!signatureVerified) {
+        throw new HTTPException(500, { message: "Error verifying signature with user public key" });
+      }
+  
+      if (!isVerified) {
+        throw new HTTPException(400, {
+          message: "Signature verification failed",
+        });
+      }
+    }
 
-    if (!isVerified) {
-      throw new HTTPException(400, {
-        message: "Signature verification failed",
+    // decrypt content with the decrypted symmetric key of the user
+    const { success: contentDecrypted, data: decrypted_content } = await decryptContent(
+      encrypted_content,
+      decrypted_symmetric_key,
+      iv,
+    )
+
+    if (!contentDecrypted || !decrypted_content) {
+      throw new HTTPException(500, {
+        message: "Error decrypting file content with server private key",
       });
     }
-
-    // 1. Decode the Base64 encrypted content + tag
-    const encryptedDataWithTag = Buffer.from(encrypted_content, "base64");
-
-    // 2. Extract the tag (last 16 bytes) and the actual ciphertext
-    const tagLength = 16;
-    const ciphertextLength = encryptedDataWithTag.length - tagLength;
-
-    // Basic check: ensure buffer is long enough to contain a tag
-    if (ciphertextLength < 0) {
-      throw new Error("Invalid encrypted data: too short to contain auth tag.");
-    }
-
-    const ciphertext = encryptedDataWithTag.subarray(0, ciphertextLength);
-    const authTag = encryptedDataWithTag.subarray(ciphertextLength); // Gets the last 16 bytes
-
-    // 3. Decode the IV
-    const ivBuffer = Buffer.from(iv, "base64");
-
-    // 4. Create the decipher
-    const decipher = crypto.createDecipheriv(
-      "aes-256-gcm",
-      decrypted_symmetric_key,
-      ivBuffer // Pass the IV buffer here
-    );
-
-    // 5. Set the authentication tag EXPLICITLY
-    decipher.setAuthTag(authTag);
-
-    // 6. Decrypt the ciphertext (ONLY the ciphertext part)
-    const decrypted_content_part1 = decipher.update(ciphertext);
-    // decipher.final() will throw if the tag verification fails
-    const decrypted_content_part2 = decipher.final();
-
-    const decrypted_content = Buffer.concat([
-      decrypted_content_part1,
-      decrypted_content_part2,
-    ]);
 
     // save the file for demonstration purposes
     const file_path = `./files/${name}`;
@@ -194,26 +177,96 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
 });
 
 app.post("/verify", zValidator("json", verifyFileSchema), async (c) => {
-  const { signature, content, public_key } = c.req.valid("json");
+  const { signature, encrypted_content, public_key, iv } = c.req.valid("json");
+  const userId = c.get("jwtPayload").sub;
 
+  // Check if the user exists
+  const {
+    success: successGettingUser,
+    error: errorGettingUser,
+    data: user,
+  } = await getUserById(userId);
+
+  if (!successGettingUser) {
+    const status =
+      errorGettingUser instanceof AuthError ? errorGettingUser.status : 500;
+    const code =
+      errorGettingUser instanceof AuthError
+        ? errorGettingUser.code
+        : "INTERNAL_SERVER_ERROR";
+    throw new HTTPException(status, {
+      message: code,
+    });
+  }
+
+  // get the encrypted_symmetric_key of the user
+  const encrypted_symmetric_key = user.symmetric_key;
+
+  if (!encrypted_symmetric_key) {
+    throw new HTTPException(400, {
+      message: "User doesn't have a symmetric key",
+    });
+  }
+
+  // Decrypt the symmetric key using the server's private key
+  const {
+    success: symmetricKeyDecrypted,
+    error: errorDecryptingSymmetricKey,
+    data: decrypted_symmetric_key,
+  } = await decryptUserSymmetricKey(encrypted_symmetric_key);
+
+  if (!symmetricKeyDecrypted) {
+    const status =
+      errorDecryptingSymmetricKey instanceof AuthError
+        ? errorDecryptingSymmetricKey.status
+        : 500;
+    const code =
+      errorDecryptingSymmetricKey instanceof AuthError
+        ? errorDecryptingSymmetricKey.code
+        : "INTERNAL_SERVER_ERROR";
+    throw new HTTPException(status, {
+      message: code,
+    });
+  }
+
+  // decrypt content with the decrypted symmetric key of the user
+  const { success: contentDecrypted, data: decrypted_content } = await decryptContent(
+    encrypted_content,
+    decrypted_symmetric_key,
+    iv,
+  )
+
+  if (!contentDecrypted || !decrypted_content) {
+    throw new HTTPException(500, {
+      message: "Error decrypting file content with server private key",
+    });
+  }
+
+  // now the content is decrypted so we can work with it
+  // here begins the actual verifycation proccess
   // generate hash
-  const hash = crypto.createHash("sha256").update(content).digest("base64");
+  const hash = crypto.createHash("sha256").update(decrypted_content).digest("base64");
 
   // Check if the file already exists
-  const isVerified = await verifyFileSignatureWithUserKey({
+  const { success: signatureVerified, data: isVerified } = await verifyFileSignatureWithUserKey({
     public_key,
     hash,
     signature,
   });
+
+  if (!signatureVerified) {
+    throw new HTTPException(500, { message: "Error verifying signature with user public key" });
+  }
 
   if (!isVerified) {
     throw new HTTPException(400, { message: "Signature verification failed" });
   }
 
   return c.json({
-    message: "File verified successfully, valid signature",
+    message: "File verified",
   });
 });
+
 app.get("/:id/download", async (c) => {
   const userId = c.get("jwtPayload").sub;
 
@@ -261,7 +314,7 @@ app.get("/:id/download", async (c) => {
   const fileBuffer = await fileContent.arrayBuffer();
   zip.file(name, fileBuffer);
 
-  // Create and add the signature file
+  // Create and add the signature file, removing any newlines from public key
   const signatureContent = JSON.stringify(
     {
       signature,

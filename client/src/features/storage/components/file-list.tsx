@@ -21,18 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, File as FileIcon, MoreVertical, Upload } from "lucide-react";
+import { Download, File as FileIcon, MoreVertical, Upload, PenLine } from "lucide-react";
 import { FileInfoModal } from "@/features/storage/components/file-info-modal";
 import { useEffect, useState } from "react";
-import { useFiles, useVerifyFile } from "@/lib/files/queries";
+import { useFiles } from "@/lib/files/queries";
 import { toast } from "sonner";
 import api from "@/lib/api/axios";
+import VerifyFileModal from "@/features/storage/components/verify-file-modal";
 
 export function FileList() {
   const [selectedFile, setSelectedFile] = useState<file | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const { mutate: verifyFile } = useVerifyFile();
+  const [verifyFileModal, setVerifyFileModal] = useState<boolean>(false);
+  const [sortBy, setSortBy] = useState<string>("date-new");
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -47,6 +48,7 @@ export function FileList() {
   const getFileType = (type: string) => {
     if (!type) return "Unknown";
     if (type.includes("/")) {
+      console.log('type:', type)
       return type.split("/")[1].toUpperCase();
     }
     return type;
@@ -59,7 +61,7 @@ export function FileList() {
   }, [files]);
 
   const onSortFiles = (value: string) => {
-    console.log(value);
+    setSortBy(value);
   };
 
   const handleFileDelete = () => {
@@ -88,22 +90,32 @@ export function FileList() {
     setIsModalOpen(true);
   };
 
-  const handleVerifyFile = () => {
-    const { publicKey } = JSON.parse(
-      localStorage.getItem("private-key") ?? "{}"
-    );
-
-    if (!publicKey) {
-      toast.error("");
-      return;
-    }
-  };
-
   if (filesLoading || !files) {
     return (
       <div className="flex items-center justify-center h-full">Loading...</div>
     );
   }
+
+  const sortFiles = (files: file[]) => {
+    return [...files].sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name);
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'date-new':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'date-old':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'size-large':
+          return b.size - a.size;
+        case 'size-small':
+          return a.size - b.size;
+        default:
+          return 0;
+      }
+    });
+  };
 
   return (
     <>
@@ -167,7 +179,7 @@ export function FileList() {
 
               {/* Table rows */}
               <div>
-                {files.map((file, i) => (
+                {sortFiles(files).map((file, i) => (
                   <div
                     key={i}
                     className={`grid grid-cols-12 py-2.5 px-6 cursor-pointer  border-t  group hover:bg-secondary/50 ${
@@ -179,6 +191,9 @@ export function FileList() {
                         <FileIcon className="size-4" />
                       </div>
                       <div className="truncate text-sm">{file.name}</div>
+                      {
+                        file.hash && <PenLine className={"size-2 ml-2 my-auto"} />
+                      }
                     </div>
 
                     <div className="col-span-2 text-xs text-muted-foreground self-center">
@@ -211,9 +226,9 @@ export function FileList() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => onFileInfo(file)}>
-                            file Info
+                            Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleVerifyFile}>
+                          <DropdownMenuItem onClick={file.hash ? () => setVerifyFileModal(true) : () => toast.info("File cannot be verified becasue it isn't signed")}>
                             Verify
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -231,6 +246,8 @@ export function FileList() {
           )}
         </CardContent>
       </Card>
+
+      <VerifyFileModal open={verifyFileModal} setOpen={setVerifyFileModal} />
     </>
   );
 }

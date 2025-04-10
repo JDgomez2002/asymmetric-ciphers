@@ -204,14 +204,22 @@ export const verifyFileSignatureWithUserKey = async ({ public_key, hash, signatu
 
   // In Web Crypto API, RSASSA-PKCS1-v1_5 with SHA-256 was used for signing
   // So we need to use the equivalent in Node.js crypto
-  const isVerified = crypto.verify(
+  try {
+    const formattedPublicKey = public_key.replace(/\\n/g, '\n');
+
+    const isVerified = crypto.verify(
       'RSA-SHA256', // Algorithm
       hashBuffer,   // Original data that was signed
-      public_key, // Public key in PEM format
+      formattedPublicKey, // Public key in PEM format
       signatureBuffer  // The signature to verify
-  );
-
+    );
     return ok(isVerified);
+
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    // console.log("verification failed:", errorMessage)
+    return err(new Error(`Verification failed: ${errorMessage}`));
+  }
 };
 
 

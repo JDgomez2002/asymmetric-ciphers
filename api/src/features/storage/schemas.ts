@@ -11,9 +11,10 @@ export const uploadFileSchema = z.object({
 });
 
 export const verifyFileSchema = z.object({
-  content: z.string(),
+  encrypted_content: z.string(),
   signature: z.string(),
   public_key: z.string(),
+  iv: z.string(),
 });
 
 export const fileIdSchema = z.object({
