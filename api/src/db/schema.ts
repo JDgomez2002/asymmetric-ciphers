@@ -1,4 +1,11 @@
-import { pgTable, serial, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  serial,
+  text,
+  varchar,
+  integer,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -7,6 +14,7 @@ export const users = pgTable("users", {
   name: varchar("name", { length: 255 }).notNull(),
   public_key: varchar("public_key", { length: 1024 }),
   symmetric_key: varchar("symmetric_key", { length: 2048 }),
+  algorithm: varchar("algorithm", { length: 255 }).default("RSA"),
 });
 
 export type User = typeof users.$inferSelect;

@@ -6,19 +6,17 @@ import {
 } from "@/components/ui/dialog";
 import api from "@/lib/api/axios";
 import { Loader2, CheckCheck, Upload } from "lucide-react";
-import {SetStateAction, useCallback, Dispatch, useState} from "react";
+import { SetStateAction, useCallback, Dispatch, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { queryClient } from "@/main";
-import { Label } from "@/components/ui/label"
-import {
-  encryptFileWithLocalKey,
-} from "@/features/storage/utils";
-import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label";
+import { encryptFileWithLocalKey } from "@/features/storage/utils";
+import { Input } from "@/components/ui/input";
 
 interface Props {
   open: boolean;
-  setOpen: Dispatch<SetStateAction<boolean>> 
+  setOpen: Dispatch<SetStateAction<boolean>>;
 }
 
 export default function VerifyFileModal({ open, setOpen }: Props) {
@@ -27,79 +25,83 @@ export default function VerifyFileModal({ open, setOpen }: Props) {
   const [signature, setSignature] = useState<string>("");
   const [publicKey, setPublicKey] = useState<string>("");
 
-  const handleFiles = useCallback(async (acceptedFiles: File[]) => {
-
-    if (!signature.trim()) {
-      toast.error("Please provide a Signature first")
-      return;
-    }
-
-    if (!publicKey.trim()) {
-      toast.error("Please provide a Public Key first")
-      return;
-    }
-
-    const encryptionKey = localStorage.getItem("symmetric-key");
-
-    if (!encryptionKey) {
-      toast.error("Please generate or provide an encryption key first.");
-      setOpen(false);
-      return;
-    }
-
-    if (!acceptedFiles || acceptedFiles.length === 0) {
-      return;
-    }
-
-    // For now, let's just handle the first file
-    const file = acceptedFiles[0];
-    if (!file) return;
-
-    setIsUploading(true);
-
-    try {
-      // 1. Encrypt the file
-      const encryptedResult = await encryptFileWithLocalKey(file);
-
-      if (!encryptedResult) {
-        // Encryption failed, error handled within the function
-        setIsUploading(false);
+  const handleFiles = useCallback(
+    async (acceptedFiles: File[]) => {
+      if (!signature.trim()) {
+        toast.error("Please provide a Signature first");
         return;
       }
 
-      // 2. Prepare the payload for the server
-      const payload = {
-        signature,
-        encrypted_content: encryptedResult.encryptedData,
-        public_key: publicKey,
-        iv: encryptedResult.iv,
-      };
-
-      // 3. Send the data to the server
-      const { status, statusText, data: { message }} = await api.post("/files/verify", payload);
-
-      if (status !== 200) {
-        throw new Error(
-          `Upload failed: ${status} ${statusText}`
-        );
+      if (!publicKey.trim()) {
+        toast.error("Please provide a Public Key first");
+        return;
       }
 
-      // 4. Handle success
-      toast.success(message);
-      setOpen(false);
-      // invalidate the files query to refresh the file list
-      await queryClient.invalidateQueries({ queryKey: ["files"] });
-    } catch (error) {
-      console.error("Upload process error:", error);
-      toast.error(
-        `Upload failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    } finally {
-      setIsUploading(false);
-    }
-  }, [signature, publicKey]);
+      const encryptionKey = localStorage.getItem("symmetric-key");
+
+      if (!encryptionKey) {
+        toast.error("Please generate or provide an encryption key first.");
+        setOpen(false);
+        return;
+      }
+
+      if (!acceptedFiles || acceptedFiles.length === 0) {
+        return;
+      }
+
+      // For now, let's just handle the first file
+      const file = acceptedFiles[0];
+      if (!file) return;
+
+      setIsUploading(true);
+
+      try {
+        // 1. Encrypt the file
+        const encryptedResult = await encryptFileWithLocalKey(file);
+
+        if (!encryptedResult) {
+          // Encryption failed, error handled within the function
+          setIsUploading(false);
+          return;
+        }
+
+        // 2. Prepare the payload for the server
+        const payload = {
+          signature,
+          encrypted_content: encryptedResult.encryptedData,
+          public_key: publicKey,
+          iv: encryptedResult.iv,
+        };
+
+        // 3. Send the data to the server
+        const {
+          status,
+          statusText,
+          data: { message },
+        } = await api.post("/files/verify", payload);
+
+        if (status !== 200) {
+          throw new Error(`Upload failed: ${status} ${statusText}`);
+        }
+
+        // 4. Handle success
+        toast.success(message);
+        setOpen(false);
+        // invalidate the files query to refresh the file list
+        await queryClient.invalidateQueries({ queryKey: ["files"] });
+      } catch (error) {
+        console.error("Upload process error:", error);
+        toast.error(
+          `Upload failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [signature, publicKey]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleFiles,
@@ -128,12 +130,22 @@ export default function VerifyFileModal({ open, setOpen }: Props) {
 
         <div className="grid w-full max-w-sm items-center gap-1.5">
           <Label htmlFor="signature">Signature</Label>
-          <Input id="signature" onChange={({ target: { value: text }}) => setSignature(text)} type="text" placeholder="yrxWOr7ytlLaBfBItGIo3ZdD2aEQ35AC..." />
+          <Input
+            id="signature"
+            onChange={({ target: { value: text } }) => setSignature(text)}
+            type="text"
+            placeholder="yrxWOr7ytlLaBfBItGIo3ZdD2aEQ35AC..."
+          />
         </div>
 
         <div className="grid w-full max-w-sm items-center gap-1.5">
           <Label htmlFor="public-key">Public key</Label>
-          <Input id="public-key" onChange={({ target: { value: text }}) => setPublicKey(text)} type="text" placeholder="-----BEGIN PUBLIC KEY-----MIIBIjAN..." />
+          <Input
+            id="public-key"
+            onChange={({ target: { value: text } }) => setPublicKey(text)}
+            type="text"
+            placeholder="-----BEGIN PUBLIC KEY-----MIIBIjAN..."
+          />
         </div>
 
         <div className="py-4">

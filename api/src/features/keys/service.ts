@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { Result, ok, err } from "@/utils/result";
 import { KeyError } from "@utils/errors";
 import * as crypto from "crypto";
-import {HTTPException} from "hono/dist/types/http-exception";
+import { HTTPException } from "hono/dist/types/http-exception";
 
 export const updateKey = async ({
   user_id,
@@ -25,14 +25,17 @@ export const updateKey = async ({
   return ok(undefined);
 };
 
+/* Syncs the user's asymmetric key with the server, also updates the algorithm used for signing files */
 export const syncUserKey = async ({
   user_id,
   encrypted_asymmetric_key,
   public_key,
+  algorithm,
 }: {
   user_id: number;
   encrypted_asymmetric_key: string;
   public_key: string;
+  algorithm: string;
 }): Promise<Result<void>> => {
   const serverPrivateKeyPem = process.env.PRIVATE_KEY;
   if (!serverPrivateKeyPem) {
@@ -72,6 +75,7 @@ export const syncUserKey = async ({
     .set({
       symmetric_key: encrypted_asymmetric_key,
       public_key: public_key,
+      algorithm: algorithm,
     })
     .where(eq(users.id, user_id))
     .returning({ id: users.id });
@@ -175,51 +179,68 @@ export const verifyFileSignature = async ({
   }
 };
 
-export const decryptUserSymmetricKey = async (encryptedKey: string): Promise<Result<Buffer<ArrayBufferLike>>> => {
+export const decryptUserSymmetricKey = async (
+  encryptedKey: string
+): Promise<Result<Buffer<ArrayBufferLike>>> => {
   // Decrypt the symmetric key using the server's private key
   const serverPrivateKeyPem = process.env.PRIVATE_KEY;
   if (!serverPrivateKeyPem) {
-    return err(new KeyError("Server configuration error", 500, "SERVER KEY ERROR" ));
+    return err(
+      new KeyError("Server configuration error", 500, "SERVER KEY ERROR")
+    );
   }
 
   const encryptedKeyBuffer = Buffer.from(encryptedKey, "base64");
   const decrypted_symmetric_key = crypto.privateDecrypt(
-      {
-        key: serverPrivateKeyPem,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: "sha256",
-      },
-      encryptedKeyBuffer
+    {
+      key: serverPrivateKeyPem,
+      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+      oaepHash: "sha256",
+    },
+    encryptedKeyBuffer
   );
 
-    return ok(decrypted_symmetric_key);
+  return ok(decrypted_symmetric_key);
 };
 
-export const verifyFileSignatureWithUserKey = async ({ public_key, hash, signature }: { public_key: string; hash: string; signature: string; }): Promise<Result<boolean>> => {
+export const verifyFileSignatureWithUserKey = async ({
+  public_key,
+  hash,
+  signature,
+  algorithm = "RSA",
+}: {
+  public_key: string;
+  hash: string;
+  signature: string;
+  algorithm?: "RSA" | "ECC";
+}): Promise<Result<boolean>> => {
   // Convert the hash from base64 to a buffer
-  const hashBuffer = Buffer.from(hash, 'base64');
+  const hashBuffer = Buffer.from(hash, "base64");
 
   // Convert the signature from base64 to a buffer
-  const signatureBuffer = Buffer.from(signature, 'base64');
+  const signatureBuffer = Buffer.from(signature, "base64");
 
-  // In Web Crypto API, RSASSA-PKCS1-v1_5 with SHA-256 was used for signing
-  // So we need to use the equivalent in Node.js crypto
   try {
-    const formattedPublicKey = public_key.replace(/\\n/g, '\n');
+    // Handle any escaped newlines in the PEM format
+    const formattedPublicKey = public_key.replace(/\\n/g, "\n");
+
+    // Choose algorithm based on the parameter
+    const verifyAlgorithm = algorithm === "ECC" ? "sha256" : "RSA-SHA256";
 
     const isVerified = crypto.verify(
-      'RSA-SHA256', // Algorithm
-      hashBuffer,   // Original data that was signed
-      formattedPublicKey, // Public key in PEM format
-      signatureBuffer  // The signature to verify
+      verifyAlgorithm, // Dynamic algorithm based on parameter
+      hashBuffer,
+      formattedPublicKey,
+      signatureBuffer
+    );
+
+    console.log(
+      "Inside verifyFileSignatureWithUserKey, the result is",
+      isVerified
     );
     return ok(isVerified);
-
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    // console.log("verification failed:", errorMessage)
     return err(new Error(`Verification failed: ${errorMessage}`));
   }
 };
-
-

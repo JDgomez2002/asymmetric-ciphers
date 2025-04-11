@@ -66,12 +66,14 @@ app.get("/", async (c) => {
 app.post("/sync", validate("json", syncKeySchema), async (c) => {
   const userId = c.get("jwtPayload").sub;
 
-  const { encrypted_asymmetric_key, public_key } = c.req.valid("json");
-  console.log("encrypted_asymmetric_key", encrypted_asymmetric_key);
+  const { encrypted_asymmetric_key, public_key, algorithm } =
+    c.req.valid("json");
+  console.log("algorithm", algorithm);
   const result = await syncUserKey({
     user_id: userId,
     encrypted_asymmetric_key,
     public_key,
+    algorithm,
   });
 
   if (!result.success) {

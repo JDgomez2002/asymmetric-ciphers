@@ -21,7 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, File as FileIcon, MoreVertical, Upload, PenLine } from "lucide-react";
+import {
+  Download,
+  File as FileIcon,
+  MoreVertical,
+  Upload,
+  PenLine,
+  CheckCheck,
+} from "lucide-react";
 import { FileInfoModal } from "@/features/storage/components/file-info-modal";
 import { useEffect, useState } from "react";
 import { useFiles } from "@/lib/files/queries";
@@ -48,7 +55,7 @@ export function FileList() {
   const getFileType = (type: string) => {
     if (!type) return "Unknown";
     if (type.includes("/")) {
-      console.log('type:', type)
+      console.log("type:", type);
       return type.split("/")[1].toUpperCase();
     }
     return type;
@@ -91,25 +98,27 @@ export function FileList() {
   };
 
   if (filesLoading || !files) {
-    return (
-      <div className="flex items-center justify-center h-full">Loading...</div>
-    );
+    return <div className="flex items-center justify-center h-full" />;
   }
 
   const sortFiles = (files: file[]) => {
     return [...files].sort((a, b) => {
       switch (sortBy) {
-        case 'name-asc':
+        case "name-asc":
           return a.name.localeCompare(b.name);
-        case 'name-desc':
+        case "name-desc":
           return b.name.localeCompare(a.name);
-        case 'date-new':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'date-old':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        case 'size-large':
+        case "date-new":
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        case "date-old":
+          return (
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        case "size-large":
           return b.size - a.size;
-        case 'size-small':
+        case "size-small":
           return a.size - b.size;
         default:
           return 0;
@@ -118,7 +127,7 @@ export function FileList() {
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       <FileInfoModal
         file={selectedFile}
         isOpen={isModalOpen}
@@ -191,9 +200,6 @@ export function FileList() {
                         <FileIcon className="size-4" />
                       </div>
                       <div className="truncate text-sm">{file.name}</div>
-                      {
-                        file.hash && <PenLine className={"size-2 ml-2 my-auto"} />
-                      }
                     </div>
 
                     <div className="col-span-2 text-xs text-muted-foreground self-center">
@@ -228,7 +234,16 @@ export function FileList() {
                           <DropdownMenuItem onClick={() => onFileInfo(file)}>
                             Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={file.hash ? () => setVerifyFileModal(true) : () => toast.info("File cannot be verified becasue it isn't signed")}>
+                          <DropdownMenuItem
+                            onClick={
+                              file.hash
+                                ? () => setVerifyFileModal(true)
+                                : () =>
+                                    toast.info(
+                                      "File cannot be verified becasue it wasn't signed"
+                                    )
+                            }
+                          >
                             Verify
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -248,6 +263,8 @@ export function FileList() {
       </Card>
 
       <VerifyFileModal open={verifyFileModal} setOpen={setVerifyFileModal} />
-    </>
+    </div>
   );
 }
+
+export default FileList;

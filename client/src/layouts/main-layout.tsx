@@ -40,7 +40,7 @@ export const MainLayout = () => {
       <header className="p-4 flex justify-between items-center ">
         <div className="flex items-center">
           <LockKeyhole className="h-4 w-4 text-primary mr-2" />
-          <h1 className="text-base font-medium">AsyDrive</h1>
+          <h1 className="text-base font-medium">AsyStorage</h1>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" size="icon" onClick={toggleTheme}>

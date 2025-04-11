@@ -10,6 +10,7 @@ export type KeySchema = z.infer<typeof keySchema>;
 export const syncKeySchema = z.object({
   encrypted_asymmetric_key: z.string().min(1),
   public_key: z.string().min(1),
+  algorithm: z.enum(["RSA", "ECC"]).default("RSA"),
 });
 
 export type SyncKeySchema = z.infer<typeof syncKeySchema>;

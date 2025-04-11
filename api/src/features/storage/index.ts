@@ -37,6 +37,14 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
     c.req.valid("json");
   const userId = c.get("jwtPayload").sub;
 
+  console.dir(
+    {
+      hash,
+      signature,
+    },
+    { depth: null }
+  );
+
   // Check if the user exists
   const {
     success: successGettingUser,
@@ -93,30 +101,35 @@ app.post("/upload", zValidator("json", uploadFileSchema), async (c) => {
 
     // 0. verify the signature with the user's public key just if the user sent valid hash and signature
     if (hash.trim() && signature.trim()) {
-      console.log("file is signed!!!!")
-      const { success: signatureVerified, data: isVerified } = await verifyFileSignatureWithUserKey({
-        public_key,
-        hash,
-        signature,
-      });
-  
-      if (!signatureVerified) {
-        throw new HTTPException(500, { message: "Error verifying signature with user public key" });
-      }
-  
-      if (!isVerified) {
-        throw new HTTPException(400, {
-          message: "Signature verification failed",
+      console.dir(
+        {
+          public_key,
+          hash,
+          signature,
+          algorithm: user.algorithm as "RSA" | "ECC",
+        },
+        { depth: null }
+      );
+      const { error: signatureVerificationError, data: validSignature } =
+        await verifyFileSignatureWithUserKey({
+          public_key,
+          hash,
+          signature,
+          algorithm: user.algorithm as "RSA" | "ECC",
+        });
+
+      if (signatureVerificationError || validSignature === false) {
+        console.error("signatureVerificationError", signatureVerificationError);
+        throw new HTTPException(500, {
+          message: "Error verifying signature with user public key",
         });
       }
+      console.log("File verified");
     }
 
     // decrypt content with the decrypted symmetric key of the user
-    const { success: contentDecrypted, data: decrypted_content } = await decryptContent(
-      encrypted_content,
-      decrypted_symmetric_key,
-      iv,
-    )
+    const { success: contentDecrypted, data: decrypted_content } =
+      await decryptContent(encrypted_content, decrypted_symmetric_key, iv);
 
     if (!contentDecrypted || !decrypted_content) {
       throw new HTTPException(500, {
@@ -230,32 +243,45 @@ app.post("/verify", zValidator("json", verifyFileSchema), async (c) => {
   }
 
   // decrypt content with the decrypted symmetric key of the user
-  const { success: contentDecrypted, data: decrypted_content } = await decryptContent(
-    encrypted_content,
-    decrypted_symmetric_key,
-    iv,
-  )
+  const { success: contentDecrypted, data: decrypted_content } =
+    await decryptContent(encrypted_content, decrypted_symmetric_key, iv);
 
   if (!contentDecrypted || !decrypted_content) {
     throw new HTTPException(500, {
-      message: "Error decrypting file content with server private key",
+      message: "Error decrypting file content with user's symmetric key",
     });
   }
 
   // now the content is decrypted so we can work with it
   // here begins the actual verifycation proccess
   // generate hash
-  const hash = crypto.createHash("sha256").update(decrypted_content).digest("base64");
+  const hash = crypto
+    .createHash("sha256")
+    .update(decrypted_content)
+    .digest("base64");
 
-  // Check if the file already exists
-  const { success: signatureVerified, data: isVerified } = await verifyFileSignatureWithUserKey({
-    public_key,
-    hash,
-    signature,
-  });
+  console.dir(
+    {
+      public_key,
+      hash,
+      signature,
+      algorithm: user.algorithm as "RSA" | "ECC",
+    },
+    { depth: null }
+  );
+
+  const { success: signatureVerified, data: isVerified } =
+    await verifyFileSignatureWithUserKey({
+      public_key,
+      hash,
+      signature,
+      algorithm: user.algorithm as "RSA" | "ECC",
+    });
 
   if (!signatureVerified) {
-    throw new HTTPException(500, { message: "Error verifying signature with user public key" });
+    throw new HTTPException(500, {
+      message: "Error verifying signature with user public key",
+    });
   }
 
   if (!isVerified) {

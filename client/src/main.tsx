@@ -21,6 +21,7 @@ const router = createBrowserRouter([
     element: <RegisterPage />,
   },
   {
+    errorElement: <div>Error</div>,
     path: "/drive",
     element: <MainLayout />,
     children: [
@@ -43,7 +44,7 @@ createRoot(document.getElementById("root")!).render(
     <ThemeProvider defaultTheme="dark">
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <RouterProvider router={router}></RouterProvider>
+          <RouterProvider router={router} />
           <Toaster />
         </AuthProvider>
       </QueryClientProvider>

@@ -25,6 +25,7 @@ interface ServerPublicKeyResponse {
 interface SyncKeyRequest {
   encrypted_asymmetric_key: string;
   public_key: string;
+  algorithm?: string;
 }
 
 interface SyncKeyResponse {
@@ -35,6 +36,7 @@ interface SyncKeyResponse {
 interface VerifySignatureRequest {
   file_id: number;
   signature: string;
+  algorithm?: string;
 }
 
 interface VerifySignatureResponse {
@@ -143,29 +145,59 @@ export const useVerifySignature = () => {
 // Sign a file with user's private key
 export const signFile = async (
   fileData: ArrayBuffer
-): Promise<string | null> => {
+): Promise<{ signature: string; algorithm: string } | null> => {
   const storedKeyPair = localStorage.getItem("private-key");
 
   if (!storedKeyPair) return null;
 
   try {
     const keyPair = JSON.parse(storedKeyPair);
+    // Get the algorithm directly from the stored key pair
+    const algorithm = keyPair.algorithm || "RSA"; // Default to RSA for backward compatibility
 
-    // Import the private key for signing
-    const privateKey = await window.crypto.subtle.importKey(
-      "jwk",
-      keyPair.privateKey,
-      {
-        name: "RSASSA-PKCS1-v1_5",
-        hash: { name: "SHA-256" },
-      },
-      false,
-      ["sign"]
-    );
+    // Import parameters based on algorithm
+    const importParams =
+      algorithm === "RSA"
+        ? {
+            name: "RSASSA-PKCS1-v1_5",
+            hash: { name: "SHA-256" },
+          }
+        : {
+            name: "ECDSA",
+            namedCurve: "P-256",
+            hash: { name: "SHA-256" },
+          };
 
-    // Sign the file
+    // Check if the privateKey is a JWK object or a base64 string
+    let privateKey;
+    if (typeof keyPair.privateKey === "object") {
+      // It's a JWK object
+      privateKey = await window.crypto.subtle.importKey(
+        "jwk",
+        keyPair.privateKey,
+        importParams,
+        false,
+        ["sign"]
+      );
+    } else {
+      // It's a base64 string (pkcs8 format)
+      privateKey = await window.crypto.subtle.importKey(
+        "pkcs8",
+        base64ToArrayBuffer(keyPair.privateKey),
+        importParams,
+        false,
+        ["sign"]
+      );
+    }
+
+    // Sign the file using algorithm-specific parameters
     const signature = await window.crypto.subtle.sign(
-      "RSASSA-PKCS1-v1_5",
+      algorithm === "RSA"
+        ? "RSASSA-PKCS1-v1_5"
+        : {
+            name: "ECDSA",
+            hash: { name: "SHA-256" },
+          },
       privateKey,
       fileData
     );
@@ -174,18 +206,33 @@ export const signFile = async (
     const signatureArray = new Uint8Array(signature);
     const binaryString = String.fromCharCode(...signatureArray);
 
-    return btoa(binaryString);
+    return {
+      signature: btoa(binaryString),
+      algorithm: algorithm,
+    };
   } catch (error) {
     console.error("Error signing file:", error);
     return null;
   }
 };
 
+// Helper function to convert base64 to ArrayBuffer
+const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
+  const binary_string = atob(base64);
+  const len = binary_string.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary_string.charCodeAt(i);
+  }
+  return bytes.buffer;
+};
+
 // Verify a signature locally
 export const verifyFileSignature = async (
   publicKeyPem: string,
   signature: string,
-  fileData: ArrayBuffer
+  fileData: ArrayBuffer,
+  algorithm: string = "RSA" // Default to RSA for backward compatibility
 ): Promise<boolean> => {
   try {
     // Remove headers and newlines from PEM
@@ -201,18 +248,6 @@ export const verifyFileSignature = async (
       keyBytes[i] = keyBinaryString.charCodeAt(i);
     }
 
-    // Import the public key
-    const publicKey = await window.crypto.subtle.importKey(
-      "spki",
-      keyBytes,
-      {
-        name: "RSASSA-PKCS1-v1_5",
-        hash: { name: "SHA-256" },
-      },
-      false,
-      ["verify"]
-    );
-
     // Convert base64 signature to binary
     const sigBinaryString = atob(signature);
     const sigBytes = new Uint8Array(sigBinaryString.length);
@@ -220,13 +255,57 @@ export const verifyFileSignature = async (
       sigBytes[i] = sigBinaryString.charCodeAt(i);
     }
 
-    // Verify the signature
-    return await window.crypto.subtle.verify(
-      "RSASSA-PKCS1-v1_5",
-      publicKey,
-      sigBytes,
-      fileData
-    );
+    // Handle ECC verification
+    if (algorithm === "ECC") {
+      try {
+        // Import public key for ECC verification
+        const eccPublicKey = await window.crypto.subtle.importKey(
+          "spki",
+          keyBytes,
+          {
+            name: "ECDSA",
+            namedCurve: "P-256",
+            hash: { name: "SHA-256" },
+          },
+          false,
+          ["verify"]
+        );
+
+        // Verify using ECDSA
+        return await window.crypto.subtle.verify(
+          {
+            name: "ECDSA",
+            hash: { name: "SHA-256" },
+          },
+          eccPublicKey,
+          sigBytes,
+          fileData
+        );
+      } catch (error) {
+        console.error("Error in ECC verification:", error);
+        return false;
+      }
+    } else {
+      // Use existing RSA verification
+      const publicKey = await window.crypto.subtle.importKey(
+        "spki",
+        keyBytes,
+        {
+          name: "RSASSA-PKCS1-v1_5",
+          hash: { name: "SHA-256" },
+        },
+        false,
+        ["verify"]
+      );
+
+      // Verify the signature
+      return await window.crypto.subtle.verify(
+        "RSASSA-PKCS1-v1_5",
+        publicKey,
+        sigBytes,
+        fileData
+      );
+    }
   } catch (error) {
     console.error("Error verifying signature:", error);
     return false;

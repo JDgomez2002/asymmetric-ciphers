@@ -18,6 +18,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PasswordInput } from "@/components/ui/password-input";
 import useLocalStorage from "@/hooks/use-local-storage";
 import { cn } from "@/lib/utils";
@@ -29,12 +37,25 @@ import {
   useSyncKeys,
   useUserKeys,
 } from "../queries/key-queries";
-import { generateKey } from "../encryption";
+import { generateKey, SigningAlgorithm } from "../encryption";
 
 export function KeySettings() {
   const [encryptionKey, setEncryptionKey] = useLocalStorage("private-key");
-  const [symmetricKey, setSymmetricKey] = useLocalStorage("symmetric-key");
+  const [_, setSymmetricKey] = useLocalStorage("symmetric-key");
   const [showWarning, setShowWarning] = useState(false);
+  const [algorithm, setAlgorithm] = useState<SigningAlgorithm>(() => {
+    try {
+      if (encryptionKey) {
+        const parsed = JSON.parse(encryptionKey);
+        if (parsed && parsed.algorithm) {
+          return parsed.algorithm;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse encryption key for algorithm:", error);
+    }
+    return "RSA";
+  });
 
   const { data: serverPublicKey, isLoading: isLoadingServerKey } =
     useServerPublicKey();
@@ -105,14 +126,15 @@ export function KeySettings() {
     }
 
     try {
-      // Generate keys, format, encrypt symmetric key
-      const keys = await generateKey(serverPublicKey);
+      // Generate keys with selected algorithm, format, encrypt symmetric key
+      const keys = await generateKey(serverPublicKey, algorithm);
 
       // Sync keys with server
       syncKeys(
         {
           encrypted_asymmetric_key: keys.encryptedKey,
           public_key: keys.publicKey,
+          algorithm: keys.algorithm, // Include algorithm in the request
         },
         {
           onSuccess: () => {
@@ -120,11 +142,14 @@ export function KeySettings() {
             const keyPairString = JSON.stringify({
               privateKey: keys.privateKey, // Store the generated private key
               publicKey: keys.publicKey, // Store the generated public key
+              algorithm: keys.algorithm, // Store the algorithm used
             });
 
             setEncryptionKey(keyPairString);
             setSymmetricKey(keys.rawSymmetricKey);
-            toast.success("Keys generated and synced successfully");
+            toast.success(
+              `${algorithm} keys generated and synced successfully`
+            );
           },
           onError: (error: any) => {
             console.error("Sync Error:", error);
@@ -166,7 +191,30 @@ export function KeySettings() {
             remains securely stored in your browser.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="key-algorithm">Signing Algorithm</Label>
+            <Select
+              value={algorithm}
+              onValueChange={(value: SigningAlgorithm) => setAlgorithm(value)}
+            >
+              <SelectTrigger id="key-algorithm">
+                <SelectValue placeholder="Select algorithm" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="RSA">
+                  RSA (larger, widely supported)
+                </SelectItem>
+                <SelectItem value="ECC">ECC (smaller, faster)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {algorithm === "RSA"
+                ? "RSA provides strong security but produces larger signatures."
+                : "ECC uses elliptic curve cryptography for smaller, faster signatures."}
+            </p>
+          </div>
+
           <Button
             onClick={handleGenerateKey}
             variant="outline"
@@ -202,13 +250,13 @@ export function KeySettings() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-2">
-              <h1>Key Management</h1>
+              <h1>Your Keys</h1>
               <Badge
                 variant="outline"
                 className={cn(
                   "text-xs rounded-sm",
                   isKeySynced
-                    ? "bg-green-500/20 text-green-500"
+                    ? "bg-green-500/20 dark:text-green-500 text-green-600 "
                     : "bg-red-500/20 text-red-500"
                 )}
               >
@@ -223,8 +271,8 @@ export function KeySettings() {
               </Badge>
             </CardTitle>
             <CardDescription>
-              Here is your public key. Your private key is stored locally in
-              your browser.
+              Here is your public key ({keyPair.algorithm || "RSA"} algorithm).
+              Your private key is stored locally in your browser.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

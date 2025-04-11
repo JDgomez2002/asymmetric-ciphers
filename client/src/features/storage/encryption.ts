@@ -1,15 +1,30 @@
-export const generateKey = async (serverPublicKeyPEM: string) => {
+// Define a type for the supported algorithms
+export type SigningAlgorithm = "RSA" | "ECC";
+
+export const generateKey = async (
+  serverPublicKeyPEM: string,
+  algorithm: SigningAlgorithm = "RSA"
+) => {
   try {
-    // 1. Generate RSA key pair
+    // Key parameters based on algorithm choice
+    const keyGenParams =
+      algorithm === "RSA"
+        ? {
+            name: "RSA-OAEP",
+            modulusLength: 2048,
+            publicExponent: new Uint8Array([1, 0, 1]), // 65537
+            hash: "SHA-256",
+          }
+        : {
+            name: "ECDSA",
+            namedCurve: "P-256", // Good balance of security and performance
+          };
+
+    // 1. Generate key pair based on algorithm
     const keyPair = await window.crypto.subtle.generateKey(
-      {
-        name: "RSA-OAEP",
-        modulusLength: 2048,
-        publicExponent: new Uint8Array([1, 0, 1]), // 65537
-        hash: "SHA-256",
-      },
+      keyGenParams,
       true, // extractable
-      ["encrypt", "decrypt"] // key usages
+      algorithm === "RSA" ? ["encrypt", "decrypt"] : ["sign", "verify"]
     );
 
     // 2. Export public key to SPKI format
@@ -84,6 +99,7 @@ export const generateKey = async (serverPublicKeyPEM: string) => {
       publicKey: publicKeyPEM, // Client's public key for server
       encryptedKey: base64EncryptedSymmetricKey, // Encrypted *symmetric* key for server
       rawSymmetricKey: base64SymmetricKey, // Raw symmetric key for local storage
+      algorithm: algorithm, // Add the algorithm used
     };
   } catch (error) {
     console.error("Error generating key pair:", error);

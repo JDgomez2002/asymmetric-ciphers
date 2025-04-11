@@ -8,12 +8,13 @@ import {
 } from "@/components/ui/dialog";
 import api from "@/lib/api/axios";
 import { Loader2, Plus, Upload } from "lucide-react";
-import {useCallback, useEffect, useState} from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { queryClient } from "@/main";
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { KEYUTIL, KJUR } from "jsrsasign";
 
 // --- Helper functions for encryption (Should ideally be in a separate utils file) ---
 
@@ -42,7 +43,7 @@ const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
  * @returns A Promise resolving to an object containing the base64 encoded IV and ciphertext, or null if encryption fails.
  */
 const encryptFileWithLocalKey = async (
-    file: File
+  file: File
 ): Promise<{ iv: string; encryptedData: string } | null> => {
   try {
     // 1. Retrieve the base64 symmetric key from local storage
@@ -58,11 +59,11 @@ const encryptFileWithLocalKey = async (
 
     // 3. Import the symmetric key for use with Web Crypto API
     const cryptoKey = await window.crypto.subtle.importKey(
-        "raw",
-        symmetricKeyRaw,
-        { name: "AES-GCM" },
-        true,
-        ["encrypt", "decrypt"]
+      "raw",
+      symmetricKeyRaw,
+      { name: "AES-GCM" },
+      true,
+      ["encrypt", "decrypt"]
     );
 
     // 4. Read the file content as an ArrayBuffer
@@ -73,12 +74,12 @@ const encryptFileWithLocalKey = async (
 
     // 6. Encrypt the file content
     const encryptedContent = await window.crypto.subtle.encrypt(
-        {
-          name: "AES-GCM",
-          iv: iv,
-        },
-        cryptoKey,
-        fileBuffer
+      {
+        name: "AES-GCM",
+        iv: iv,
+      },
+      cryptoKey,
+      fileBuffer
     );
 
     // 7. Package the IV and encrypted data (convert to base64 for easier handling/storage)
@@ -105,7 +106,10 @@ const encryptFileWithLocalKey = async (
 const generateFileHash = async (fileContent: ArrayBuffer): Promise<string> => {
   try {
     // Generate SHA-256 hash of the file content
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', fileContent);
+    const hashBuffer = await window.crypto.subtle.digest(
+      "SHA-256",
+      fileContent
+    );
 
     // Convert the hash to base64 string
     return arrayBufferToBase64(hashBuffer);
@@ -125,21 +129,21 @@ const signHash = async (hash: string, private_key: string): Promise<string> => {
   try {
     // Import the private key for use with Web Crypto API
     const privateKey = await window.crypto.subtle.importKey(
-        "pkcs8",
-        base64ToArrayBuffer(private_key),
-        {
-          name: "RSASSA-PKCS1-v1_5",
-          hash: { name: "SHA-256" },
-        },
-        false,
-        ["sign"]
+      "pkcs8",
+      base64ToArrayBuffer(private_key),
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: { name: "SHA-256" },
+      },
+      false,
+      ["sign"]
     );
 
     // Sign the hash
     const signature = await window.crypto.subtle.sign(
-        "RSASSA-PKCS1-v1_5",
-        privateKey,
-        base64ToArrayBuffer(hash)
+      "RSASSA-PKCS1-v1_5",
+      privateKey,
+      base64ToArrayBuffer(hash)
     );
 
     // Convert the signature to base64 string
@@ -161,98 +165,160 @@ export function FileUploadModal({ triggerButton }: FileUploadModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [sign, setSign] = useState<boolean>(false);
 
-  const handleFiles = useCallback(async (acceptedFiles: File[]) => {
-    const encryptionKey = localStorage.getItem("symmetric-key");
-    const { privateKey } = JSON.parse(localStorage.getItem("private-key") ?? "{}");
+  const handleFiles = useCallback(
+    async (acceptedFiles: File[]) => {
+      const encryptionKey = localStorage.getItem("symmetric-key");
+      const { privateKey, algorithm } = JSON.parse(
+        localStorage.getItem("private-key") ?? "{}"
+      );
 
-    if (!encryptionKey) {
-      toast.error("Please generate or provide an encryption key first.");
-      setIsOpen(false);
-      return;
-    }
-
-    if (sign && !privateKey) {
-      toast.error("Private key not found. Cannot sign the file.");
-      return;
-    }
-
-    if (!acceptedFiles || acceptedFiles.length === 0) {
-      return;
-    }
-
-    // For now, let's just handle the first file
-    const file = acceptedFiles[0];
-    if (!file) return;
-
-    setIsUploading(true);
-
-    try {
-      // 1. Encrypt the file
-      const encryptedResult = await encryptFileWithLocalKey(file);
-
-      if (!encryptedResult) {
-        // Encryption failed, error handled within the function
-        setIsUploading(false);
+      if (!encryptionKey) {
+        toast.error("Please generate or provide an encryption key first.");
+        setIsOpen(false);
         return;
       }
 
-      let fileHash = "";
-      let signature = "";
-
-      // console.log("Signing file:", sign);
-
-      // Only perform signing if the sign flag is true
-      if (sign) {
-        // Read file content for hashing
-        const fileBuffer = await file.arrayBuffer();
-
-        // Generate a hash of the original file content
-        fileHash = await generateFileHash(fileBuffer);
-
-        // Sign the hash with the private key
-        signature = await signHash(fileHash, privateKey);
-
-        // console.log("Signing file:", sign, fileHash, signature);
+      if (sign && !privateKey) {
+        toast.error("Private key not found. Cannot sign the file.");
+        return;
       }
 
-      // 2. Prepare the payload for the server
-      const payload = {
-        name: file.name,
-        encrypted_content: encryptedResult.encryptedData,
-        iv: encryptedResult.iv,
-        hash: fileHash,
-        signature: signature,
-        contentType: file.type || "application/octet-stream",
-        size: file.size,
-      };
+      if (!acceptedFiles || acceptedFiles.length === 0) {
+        return;
+      }
 
-      // 3. Send the data to the server
-      const response = await api.post("/files/upload", payload);
+      // For now, let's just handle the first file
+      const file = acceptedFiles[0];
+      if (!file) return;
 
-      if (response.status !== 200) {
-        throw new Error(
-          `Upload failed: ${response.status} ${response.statusText}`
+      setIsUploading(true);
+
+      try {
+        // 1. Encrypt the file
+        const encryptedResult = await encryptFileWithLocalKey(file);
+
+        if (!encryptedResult) {
+          // Encryption failed, error handled within the function
+          setIsUploading(false);
+          return;
+        }
+
+        let fileHash = "";
+        let signature = "";
+
+        // Only perform signing if the sign flag is true
+        if (sign) {
+          // Read file content for hashing
+          const fileBuffer = await file.arrayBuffer();
+
+          // Generate a hash of the original file content
+          fileHash = await generateFileHash(fileBuffer);
+
+          // Use ECC specific signing with jsrsasign if the algorithm is ECC
+          if (algorithm === "ECC") {
+            try {
+              // 1. Format the base64 PKCS8 key into PEM format
+              const pemHeader = "-----BEGIN PRIVATE KEY-----";
+              const pemFooter = "-----END PRIVATE KEY-----";
+              // Ensure proper 64-char line wrapping for PEM standard
+              const pemBody = privateKey.match(/.{1,64}/g)?.join("\n") || "";
+              const pemFormattedPrivateKey = `${pemHeader}\n${pemBody}\n${pemFooter}`;
+
+              console.log("PEM formatted private key:", pemFormattedPrivateKey);
+
+              // 2. Load the private key using KEYUTIL from the PEM string
+              //    No format hint needed, KEYUTIL auto-detects PEM.
+              const prvKey = KEYUTIL.getKey(pemFormattedPrivateKey);
+
+              if (!prvKey) {
+                throw new Error(
+                  "Failed to load ECC private key from PEM using KEYUTIL."
+                );
+              }
+
+              // 3. Create a signature instance
+              const sig = new KJUR.crypto.Signature({ alg: "SHA256withECDSA" });
+
+              // 4. Initialize for signing
+              sig.init(prvKey);
+
+              // 5. Convert base64 hash to Hex
+              const hashBytes = base64ToArrayBuffer(fileHash);
+              let hashHex = "";
+              const hashUint8Array = new Uint8Array(hashBytes);
+              for (let i = 0; i < hashUint8Array.length; i++) {
+                hashHex += ("0" + hashUint8Array[i].toString(16)).slice(-2);
+              }
+
+              // 6. Update with hash hex
+              sig.updateHex(hashHex);
+
+              // 7. Sign (DER format hex)
+              const sigHex = sig.sign();
+
+              // 8. Convert hex DER signature to base64
+              const sigBytes = [];
+              for (let i = 0; i < sigHex.length; i += 2) {
+                sigBytes.push(parseInt(sigHex.substring(i, i + 2), 16));
+              }
+              signature = arrayBufferToBase64(Uint8Array.from(sigBytes).buffer);
+
+              console.log("ECC Signature (DER, Base64):", signature);
+            } catch (error) {
+              console.error("Error using jsrsasign ECC signing:", error);
+              toast.error(
+                "Failed to sign with ECC using jsrsasign. See console."
+              );
+              signature = "";
+            }
+          } else {
+            // Regular RSA signing
+            signature = await signHash(fileHash, privateKey);
+            console.log("RSA Signature (Base64):", signature);
+          }
+        }
+
+        // 2. Prepare the payload for the server
+        const payload = {
+          name: file.name,
+          encrypted_content: encryptedResult.encryptedData,
+          iv: encryptedResult.iv,
+          hash: fileHash,
+          signature: signature,
+          algorithm: sign ? algorithm : "",
+          contentType: file.type || "application/octet-stream",
+          size: file.size,
+        };
+
+        // 3. Send the data to the server
+        const response = await api.post("/files/upload", payload);
+
+        if (response.status !== 200) {
+          throw new Error(
+            `Upload failed: ${response.status} ${response.statusText}`
+          );
+        }
+
+        // 4. Handle success
+        const responseData = response.data;
+        console.log("Upload successful:", responseData);
+        toast.success(`${file.name} uploaded and encrypted successfully!`);
+        setIsOpen(false);
+        // invalidate the files query to refresh the file list
+        await queryClient.invalidateQueries({ queryKey: ["files"] });
+      } catch (error) {
+        console.error("Upload process error:", error);
+        toast.error(
+          `Upload failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`
         );
+      } finally {
+        setIsUploading(false);
       }
-
-      // 4. Handle success
-      const responseData = response.data;
-      console.log("Upload successful:", responseData);
-      toast.success(`${file.name} uploaded and encrypted successfully!`);
-      setIsOpen(false);
-      // invalidate the files query to refresh the file list
-      await queryClient.invalidateQueries({ queryKey: ["files"] });
-    } catch (error) {
-      console.error("Upload process error:", error);
-      toast.error(
-        `Upload failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    } finally {
-      setIsUploading(false);
-    }
-  }, [sign]);
+    },
+    [sign]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleFiles,
@@ -285,11 +351,6 @@ export function FileUploadModal({ triggerButton }: FileUploadModalProps) {
             Upload File
           </DialogTitle>
         </DialogHeader>
-
-        <div className="flex items-center space-x-2">
-          <Switch id="sign-file" onCheckedChange={(value) => setSign(value)} defaultChecked={sign} />
-          <Label>Sign file</Label>
-        </div>
 
         <div className="py-4">
           <div
@@ -327,6 +388,14 @@ export function FileUploadModal({ triggerButton }: FileUploadModalProps) {
                 : "Please generate an encryption key first"}
             </p>
           </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="sign-file"
+            onCheckedChange={(value) => setSign(value)}
+            defaultChecked={sign}
+          />
+          <Label>Sign file</Label>
         </div>
       </DialogContent>
     </Dialog>

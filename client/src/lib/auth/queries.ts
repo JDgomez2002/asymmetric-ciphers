@@ -68,7 +68,8 @@ export const useLogout = () => {
       return Promise.resolve();
     },
     onSuccess: () => {
-      localStorage.removeItem("token");
+      // complete delete anything in local storage
+      localStorage.clear();
       delete api.defaults.headers.common["Authorization"];
       queryClient.resetQueries({ queryKey: [USER_QUERY_KEY] });
     },
